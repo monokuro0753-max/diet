@@ -383,8 +383,11 @@ function saveLog() {
     burned: parseInt(document.getElementById('f-burned').value)||null,
     intake: parseInt(document.getElementById('f-intake').value)||null,
     breakfast: document.getElementById('f-breakfast').value.trim(),
+    calBreakfast: parseInt(document.getElementById('f-cal-breakfast').value)||null,
     lunch: document.getElementById('f-lunch').value.trim(),
+    calLunch: parseInt(document.getElementById('f-cal-lunch').value)||null,
     dinner: document.getElementById('f-dinner').value.trim(),
+    calDinner: parseInt(document.getElementById('f-cal-dinner').value)||null,
     training: document.getElementById('f-training').value.trim()
   };
   if (!row.date) { showToast('日付を入力してください', 'err'); return; }
@@ -394,14 +397,18 @@ function saveLog() {
   localStorage.setItem('dietlogs_v2', JSON.stringify(logs));
   if (gasUrl) fetch(gasUrl,{method:'POST',body:JSON.stringify(row)}).catch(function(){});
   showToast('保存しました ✓', 'ok');
-  clearForm();
+  // 日付だけ翌日に進める（入力値は保持）
+  var d = new Date(); d.setDate(d.getDate()+1);
+  var m = ('0'+(d.getMonth()+1)).slice(-2);
+  var day2 = ('0'+d.getDate()).slice(-2);
+  document.getElementById('f-date').value = d.getFullYear() + '-' + m + '-' + day2;
 }
 
 function clearForm() {
   ['f-weight','f-steps','f-burned','f-intake','f-breakfast','f-lunch','f-dinner','f-training','f-cal-breakfast','f-cal-lunch','f-cal-dinner']
     .forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('cal-sum').textContent = '—';
-  var d = new Date(); d.setDate(d.getDate()+1);
+  var d = new Date();
   var m = ('0'+(d.getMonth()+1)).slice(-2);
   var day2 = ('0'+d.getDate()).slice(-2);
   document.getElementById('f-date').value = d.getFullYear() + '-' + m + '-' + day2;
