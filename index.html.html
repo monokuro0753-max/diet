@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Diet Log">
+<title>Diet Log</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --pink: #D4537E;
+  --pink-light: rgba(212,83,126,0.1);
+  --pink-mid: rgba(212,83,126,0.6);
+  --green: #1D9E75;
+  --blue: #378ADD;
+  --bg: #F7F6F3;
+  --card: #FFFFFF;
+  --text: #1A1A1A;
+  --muted: #7A7A7A;
+  --border: rgba(0,0,0,0.08);
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111110;
+    --card: #1C1C1A;
+    --text: #F0EEE8;
+    --muted: #888784;
+    --border: rgba(255,255,255,0.08);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overscroll-behavior: none; }
+body { display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; }
+
+/* Header */
+.header { padding: 56px 20px 0; }
+.header-top { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
+.app-title { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; }
+.app-title span { color: var(--pink); }
+.date-chip { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--muted); background: var(--card); border: 1px solid var(--border); padding: 6px 12px; border-radius: 20px; }
+
+/* Tabs */
+.tabs { display: flex; padding: 0 20px; gap: 4px; margin-bottom: 16px; }
+.tab { flex: 1; padding: 8px 4px; font-size: 12px; font-weight: 500; text-align: center; cursor: pointer; color: var(--muted); border-radius: 8px; border: none; background: none; transition: all 0.2s; }
+.tab.active { color: var(--pink); background: var(--pink-light); }
+
+/* Scroll area */
+.scroll { flex: 1; overflow-y: auto; padding: 0 20px 100px; -webkit-overflow-scrolling: touch; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* Cards */
+.card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
+.card-label { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; }
+
+/* Fields */
+.field { margin-bottom: 12px; }
+.field:last-child { margin-bottom: 0; }
+.field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+input[type=text], input[type=number], textarea {
+  width: 100%; font-size: 15px; font-family: 'DM Sans', sans-serif;
+  padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg);
+  color: var(--text); outline: none; transition: border-color 0.15s;
+}
+input:focus, textarea:focus { border-color: var(--pink); }
+textarea { height: 56px; resize: none; line-height: 1.5; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* AI button */
+.ai-btn {
+  width: 100%; padding: 12px; background: var(--card);
+  color: var(--pink); border: 1.5px solid var(--pink);
+  border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
+  font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.ai-btn:active { background: var(--pink-light); transform: scale(0.98); }
+.ai-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Cal preview */
+.cal-preview { background: var(--pink-light); border-radius: var(--radius-sm); padding: 14px; margin-top: 10px; display: none; border: 1px solid rgba(212,83,126,0.2); }
+.cal-total-num { font-size: 28px; font-weight: 600; color: var(--pink); font-family: 'DM Mono', monospace; }
+.cal-unit { font-size: 14px; color: var(--pink); font-weight: 500; margin-left: 2px; }
+.cal-breakdown { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 2; }
+.cal-row { display: flex; justify-content: space-between; }
+.apply-btn { margin-top: 10px; width: 100%; padding: 10px; background: var(--pink); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+.apply-btn:active { opacity: 0.85; }
+
+/* Save button */
+.save-btn { width: 100%; padding: 14px; background: var(--pink); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; }
+.save-btn:active { opacity: 0.85; transform: scale(0.99); }
+
+/* Metrics */
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.metric-card { background: var(--card); border-radius: var(--radius); padding: 14px 16px; border: 1px solid var(--border); }
+.metric-val { font-size: 24px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.metric-val.down { color: var(--green); }
+.metric-val.up { color: var(--pink); }
+.metric-lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* Chart */
+.chart-card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
+.chart-title { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; }
+
+/* Log */
+.log-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.log-item:last-child { border-bottom: none; }
+.log-date-badge { display: inline-block; font-family: 'DM Mono', monospace; font-size: 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; color: var(--muted); margin-bottom: 5px; }
+.log-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+.log-stat { font-size: 13px; }
+.log-stat span { color: var(--muted); font-size: 11px; margin-right: 2px; }
+.log-training { font-size: 11px; color: var(--muted); margin-top: 4px; font-style: italic; }
+.empty { text-align: center; color: var(--muted); font-size: 13px; padding: 3rem 0; }
+
+/* Sheet tab */
+.code-block { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text); white-space: pre-wrap; line-height: 1.7; margin-bottom: 12px; overflow-x: auto; }
+.step-list { list-style: none; margin-bottom: 14px; }
+.step-list li { font-size: 13px; color: var(--muted); line-height: 1.8; padding-left: 20px; position: relative; }
+.step-list li::before { content: attr(data-n); position: absolute; left: 0; color: var(--pink); font-weight: 600; font-family: 'DM Mono', monospace; font-size: 11px; top: 3px; }
+
+/* Spinner */
+.spinner { width: 16px; height: 16px; border: 2px solid rgba(212,83,126,0.3); border-top-color: var(--pink); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1A1A1A; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.ok { background: #1A3A2A; }
+.toast.err { background: #3A1A1A; }
+
+/* Note */
+.note { font-size: 11px; color: var(--muted); line-height: 1.7; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="app-title">Diet<span>.</span></div>
+    <div class="date-chip" id="header-date"></div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('input')">入力</button>
+    <button class="tab" onclick="switchTab('graph')">グラフ</button>
+    <button class="tab" onclick="switchTab('log')">履歴</button>
+    <button class="tab" onclick="switchTab('sheet')">連携</button>
+  </div>
+</div>
+
+<div class="scroll">
+
+  <!-- 入力 -->
+  <div id="page-input" class="page active">
+    <div class="card">
+      <div class="card-label">基本記録</div>
+      <div class="field">
+        <label>日付</label>
+        <input type="text" id="f-date" placeholder="例: 4/20">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>体重 (kg)</label>
+          <input type="number" id="f-weight" step="0.1" placeholder="77.6">
+        </div>
+        <div class="field">
+          <label>歩数</label>
+          <input type="number" id="f-steps" placeholder="8000">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>消費 (kcal)</label>
+          <input type="number" id="f-burned" placeholder="2500">
+        </div>
+        <div class="field">
+          <label>摂取 (kcal)</label>
+          <input type="number" id="f-intake" placeholder="自動計算可">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">食事内容 — AI カロリー推定</div>
+      <div class="field">
+        <label>朝食</label>
+        <textarea id="f-breakfast" placeholder="例: ローソン サラダチキン プレーン＋ゆで卵2個"></textarea>
+      </div>
+      <div class="field">
+        <label>昼食</label>
+        <textarea id="f-lunch" placeholder="例: ファミマ ブランパン＋トマトジュース200ml"></textarea>
+      </div>
+      <div class="field">
+        <label>夕食</label>
+        <textarea id="f-dinner" placeholder="例: 鶏むね肉150g＋ブロッコリー200g＋鍋"></textarea>
+      </div>
+      <button class="ai-btn" id="estimate-btn" onclick="estimateCalories()">
+        <span id="estimate-icon">✦</span> 食事内容からカロリーをAI推定
+      </button>
+      <p class="note">商品名・量を書くほど精度が上がります。「ローソン サラダチキン プレーン」のように記載するとより正確です。</p>
+
+      <div class="cal-preview" id="cal-preview">
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div class="cal-total-num" id="cal-total">—</div>
+          <div class="cal-unit">kcal</div>
+        </div>
+        <div class="cal-breakdown" id="cal-breakdown"></div>
+        <button class="apply-btn" onclick="applyCalories()">この値を摂取 kcal に反映 →</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">トレーニング・サウナ</div>
+      <div class="field">
+        <textarea id="f-training" placeholder="例: サウナ5セット、ランニング5km、ジム筋トレ30分"></textarea>
+      </div>
+    </div>
+
+    <button class="save-btn" onclick="saveLog()">保存する</button>
+  </div>
+
+  <!-- グラフ -->
+  <div id="page-graph" class="page">
+    <div class="metric-grid" id="metrics"></div>
+    <div class="chart-card">
+      <div class="chart-title">体重推移 (kg)</div>
+      <canvas id="chart-weight" height="160"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">カロリー収支 (kcal)</div>
+      <canvas id="chart-cal" height="160"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">歩数推移</div>
+      <canvas id="chart-steps" height="140"></canvas>
+    </div>
+  </div>
+
+  <!-- 履歴 -->
+  <div id="page-log" class="page">
+    <div class="card" id="log-list"></div>
+  </div>
+
+  <!-- 連携 -->
+  <div id="page-sheet" class="page">
+    <div class="card">
+      <div class="card-label">Google スプレッドシート自動連携</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;">以下のコードをApps Scriptに貼り付けると、保存時にスプレッドシートへ自動追記されます。</p>
+      <div class="code-block">function doPost(e) {
+  var ss = SpreadsheetApp
+    .getActiveSpreadsheet();
+  var sh = ss.getSheetByName("実績")
+    || ss.insertSheet("実績");
+  var d = JSON.parse(e.postData.contents);
+  sh.appendRow([
+    d.date, d.weight, d.steps,
+    d.burned, d.intake,
+    d.breakfast, d.lunch,
+    d.dinner, d.training,
+    new Date()
+  ]);
+  return ContentService
+    .createTextOutput("OK");
+}</div>
+      <ul class="step-list">
+        <li data-n="①">スプレッドシートを開く → 拡張機能 → Apps Script</li>
+        <li data-n="②">上記コードを貼り付けて保存</li>
+        <li data-n="③">デプロイ → 新しいデプロイ → ウェブアプリ</li>
+        <li data-n="④">アクセス権を「全員」にしてデプロイ</li>
+        <li data-n="⑤">発行されたURLを下に入力</li>
+      </ul>
+      <div class="field">
+        <label>Apps Script URL</label>
+        <input type="text" id="gas-url" placeholder="https://script.google.com/..." oninput="saveGasUrl()">
+      </div>
+      <div id="gas-status" style="font-size:12px;color:var(--green);margin-top:4px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">ホーム画面への追加方法</div>
+      <ul class="step-list">
+        <li data-n="①">このHTMLファイルをサーバーやNetlifyにアップロード</li>
+        <li data-n="②">iPhoneはSafariで開く → 共有 → 「ホーム画面に追加」</li>
+        <li data-n="③">Androidはクロームで開く → メニュー → 「ホーム画面に追加」</li>
+      </ul>
+      <p class="note" style="margin-top:8px;">Netlify（netlify.com）は無料でHTMLをアップロードしてURLを発行できます。ドラッグ＆ドロップでOKです。</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+var logs = [];
+try { logs = JSON.parse(localStorage.getItem('dietlogs_v2') || '[]'); } catch(e){}
+var gasUrl = localStorage.getItem('gasUrl') || '';
+var charts = {};
+var estimatedData = null;
+
+// Header date
+(function(){
+  var d = new Date();
+  var days = ['日','月','火','水','木','金','土'];
+  document.getElementById('header-date').textContent =
+    (d.getMonth()+1) + '/' + d.getDate() + ' (' + days[d.getDay()] + ')';
+})();
+
+function today() {
+  var d = new Date();
+  return (d.getMonth()+1) + '/' + d.getDate();
+}
+document.getElementById('f-date').value = today();
+
+function switchTab(name) {
+  var names = ['input','graph','log','sheet'];
+  document.querySelectorAll('.tab').forEach(function(t,i){ t.classList.toggle('active', names[i]===name); });
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('page-'+name).classList.add('active');
+  if (name==='graph') renderGraphs();
+  if (name==='log') renderLog();
+  if (name==='sheet') {
+    document.getElementById('gas-url').value = gasUrl;
+    if (gasUrl) document.getElementById('gas-status').textContent = 'URL設定済み ✓';
+  }
+}
+
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type||'ok');
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+async function estimateCalories() {
+  var b = document.getElementById('f-breakfast').value.trim();
+  var l = document.getElementById('f-lunch').value.trim();
+  var d = document.getElementById('f-dinner').value.trim();
+  if (!b && !l && !d) { showToast('食事内容を入力してください', 'err'); return; }
+
+  var btn = document.getElementById('estimate-btn');
+  var icon = document.getElementById('estimate-icon');
+  btn.disabled = true;
+  icon.innerHTML = '<div class="spinner"></div>';
+
+  var prompt = '以下の食事内容から各食事の推定カロリーをJSONのみで返してください。前置き・説明・マークダウン記号は一切不要です。\n朝食: '+(b||'なし')+'\n昼食: '+(l||'なし')+'\n夕食: '+(d||'なし')+'\n\n返答形式のみ: {"breakfast":数値,"lunch":数値,"dinner":数値,"total":数値,"note":"根拠を1行で"}';
+
+  try {
+    var res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    var data = await res.json();
+    var text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
+    text = text.replace(/```json|```/g,'').trim();
+    var p = JSON.parse(text);
+    estimatedData = p;
+
+    document.getElementById('cal-total').textContent = (p.total||0).toLocaleString();
+    var rows = '';
+    if (b) rows += '<div class="cal-row"><span>朝食</span><span>'+p.breakfast+' kcal</span></div>';
+    if (l) rows += '<div class="cal-row"><span>昼食</span><span>'+p.lunch+' kcal</span></div>';
+    if (d) rows += '<div class="cal-row"><span>夕食</span><span>'+p.dinner+' kcal</span></div>';
+    if (p.note) rows += '<div style="margin-top:6px;font-size:10px;opacity:0.7;">'+p.note+'</div>';
+    document.getElementById('cal-breakdown').innerHTML = rows;
+    document.getElementById('cal-preview').style.display = 'block';
+  } catch(err) {
+    showToast('推定に失敗しました。再試行してください', 'err');
+  }
+  btn.disabled = false;
+  icon.textContent = '✦';
+}
+
+function applyCalories() {
+  if (!estimatedData) return;
+  document.getElementById('f-intake').value = estimatedData.total || '';
+  showToast('摂取 kcal に反映しました ✓', 'ok');
+}
+
+function saveLog() {
+  var row = {
+    date: document.getElementById('f-date').value.trim(),
+    weight: parseFloat(document.getElementById('f-weight').value)||null,
+    steps: parseInt(document.getElementById('f-steps').value)||null,
+    burned: parseInt(document.getElementById('f-burned').value)||null,
+    intake: parseInt(document.getElementById('f-intake').value)||null,
+    breakfast: document.getElementById('f-breakfast').value.trim(),
+    lunch: document.getElementById('f-lunch').value.trim(),
+    dinner: document.getElementById('f-dinner').value.trim(),
+    training: document.getElementById('f-training').value.trim()
+  };
+  if (!row.date) { showToast('日付を入力してください', 'err'); return; }
+  var idx = logs.findIndex(function(l){ return l.date===row.date; });
+  if (idx>=0) logs[idx]=row; else logs.push(row);
+  logs.sort(function(a,b){ return a.date<b.date?-1:1; });
+  localStorage.setItem('dietlogs_v2', JSON.stringify(logs));
+  if (gasUrl) fetch(gasUrl,{method:'POST',body:JSON.stringify(row)}).catch(function(){});
+  showToast('保存しました ✓', 'ok');
+  clearForm();
+}
+
+function clearForm() {
+  ['f-weight','f-steps','f-burned','f-intake','f-breakfast','f-lunch','f-dinner','f-training']
+    .forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('cal-preview').style.display='none';
+  estimatedData = null;
+  var d = new Date(); d.setDate(d.getDate()+1);
+  document.getElementById('f-date').value = (d.getMonth()+1)+'/'+d.getDate();
+}
+
+function saveGasUrl() {
+  gasUrl = document.getElementById('gas-url').value.trim();
+  localStorage.setItem('gasUrl', gasUrl);
+  document.getElementById('gas-status').textContent = gasUrl ? 'URL設定済み ✓' : '';
+}
+
+function renderGraphs() {
+  var recent = logs.slice(-20);
+  var labels = recent.map(function(l){ return l.date; });
+  var metrics = document.getElementById('metrics');
+  if (logs.length) {
+    var last = logs[logs.length-1];
+    var wFirst = logs.find(function(l){return l.weight;});
+    var diff = (last.weight && wFirst && wFirst.weight) ? (last.weight - wFirst.weight).toFixed(1) : null;
+    var isDown = diff !== null && parseFloat(diff) < 0;
+    metrics.innerHTML =
+      '<div class="metric-card"><div class="metric-val">'+(last.weight||'—')+'<span style="font-size:14px;font-weight:400"> kg</span></div><div class="metric-lbl">最新体重</div></div>'+
+      '<div class="metric-card"><div class="metric-val '+(isDown?'down':'up')+'">'+(diff!==null?(isDown?'':'+') + diff:'—')+'<span style="font-size:14px;font-weight:400"> kg</span></div><div class="metric-lbl">開始からの変化</div></div>';
+  } else {
+    metrics.innerHTML = '<div class="metric-card"><div class="metric-val">—</div><div class="metric-lbl">最新体重</div></div><div class="metric-card"><div class="metric-val">—</div><div class="metric-lbl">変化量</div></div>';
+  }
+
+  var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  var tickColor = isDark ? '#666' : '#aaa';
+
+  function mk(id, type, data, extra) {
+    if (charts[id]) charts[id].destroy();
+    var ctx = document.getElementById(id).getContext('2d');
+    charts[id] = new Chart(ctx, { type:type, data:data, options: Object.assign({
+      responsive:true, maintainAspectRatio:true,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{ font:{size:9}, color:tickColor, maxRotation:45 }, grid:{display:false} },
+        y:{ ticks:{ font:{size:9}, color:tickColor }, grid:{ color:gridColor } }
+      }
+    }, extra||{}) });
+  }
+
+  mk('chart-weight','line',{ labels:labels, datasets:[{
+    data:recent.map(function(l){return l.weight;}),
+    borderColor:'#D4537E', backgroundColor:'rgba(212,83,126,0.08)',
+    tension:0.35, pointRadius:3, pointBackgroundColor:'#D4537E', fill:true, borderWidth:2
+  }]});
+
+  mk('chart-cal','bar',{ labels:labels, datasets:[
+    { label:'消費', data:recent.map(function(l){return l.burned;}), backgroundColor:'rgba(29,158,117,0.7)', borderRadius:4 },
+    { label:'摂取', data:recent.map(function(l){return l.intake;}), backgroundColor:'rgba(212,83,126,0.6)', borderRadius:4 }
+  ]},{ plugins:{ legend:{ display:true, labels:{ font:{size:10}, boxWidth:10, color:tickColor } } } });
+
+  mk('chart-steps','bar',{ labels:labels, datasets:[{
+    data:recent.map(function(l){return l.steps;}),
+    backgroundColor:'rgba(55,138,221,0.6)', borderRadius:4
+  }]});
+}
+
+function renderLog() {
+  var el = document.getElementById('log-list');
+  if (!logs.length) { el.innerHTML='<div class="empty">まだ記録がありません</div>'; return; }
+  el.innerHTML = logs.slice().reverse().slice(0,40).map(function(l){
+    var stats = '';
+    if (l.weight) stats += '<div class="log-stat"><span>体重</span>'+l.weight+'kg</div>';
+    if (l.intake) stats += '<div class="log-stat"><span>摂取</span>'+l.intake+'kcal</div>';
+    if (l.burned) stats += '<div class="log-stat"><span>消費</span>'+l.burned+'kcal</div>';
+    if (l.steps) stats += '<div class="log-stat"><span>歩数</span>'+(l.steps.toLocaleString())+'</div>';
+    return '<div class="log-item">'+
+      '<div class="log-date-badge">'+l.date+'</div>'+
+      '<div class="log-stats">'+stats+'</div>'+
+      (l.training?'<div class="log-training">'+l.training+'</div>':'')+
+      '</div>';
+  }).join('');
+}
+</script>
+</body>
+</html>
