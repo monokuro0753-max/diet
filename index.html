@@ -160,7 +160,7 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
       <div class="card-label">基本記録</div>
       <div class="field">
         <label>日付</label>
-        <input type="text" id="f-date" placeholder="例: 4/20">
+        <input type="date" id="f-date">
       </div>
       <div class="row2">
         <div class="field">
@@ -324,9 +324,17 @@ var estimatedData = null;
 
 function today() {
   var d = new Date();
-  return (d.getMonth()+1) + '/' + d.getDate();
+  var m = ('0'+(d.getMonth()+1)).slice(-2);
+  var day = ('0'+d.getDate()).slice(-2);
+  return d.getFullYear() + '-' + m + '-' + day;
 }
 document.getElementById('f-date').value = today();
+
+function formatDateForSheet(val) {
+  if (!val) return '';
+  var parts = val.split('-');
+  return parts[0] + '/' + parseInt(parts[1]) + '/' + parseInt(parts[2]);
+}
 
 function switchTab(name) {
   var names = ['input','graph','log','sheet'];
@@ -369,7 +377,7 @@ function applyTotal() {
 
 function saveLog() {
   var row = {
-    date: document.getElementById('f-date').value.trim(),
+    date: formatDateForSheet(document.getElementById('f-date').value),
     weight: parseFloat(document.getElementById('f-weight').value)||null,
     steps: parseInt(document.getElementById('f-steps').value)||null,
     burned: parseInt(document.getElementById('f-burned').value)||null,
@@ -394,7 +402,9 @@ function clearForm() {
     .forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('cal-sum').textContent = '—';
   var d = new Date(); d.setDate(d.getDate()+1);
-  document.getElementById('f-date').value = (d.getMonth()+1)+'/'+d.getDate();
+  var m = ('0'+(d.getMonth()+1)).slice(-2);
+  var day2 = ('0'+d.getDate()).slice(-2);
+  document.getElementById('f-date').value = d.getFullYear() + '-' + m + '-' + day2;
 }
 
 function saveGasUrl() {
