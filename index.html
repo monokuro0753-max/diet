@@ -185,32 +185,43 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
     </div>
 
     <div class="card">
-      <div class="card-label">食事内容 — AI カロリー推定</div>
+      <div class="card-label">食事内容</div>
+
       <div class="field">
         <label>朝食</label>
         <textarea id="f-breakfast" placeholder="例: ローソン サラダチキン プレーン＋ゆで卵2個"></textarea>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+          <input type="number" id="f-cal-breakfast" placeholder="kcal" style="width:120px;" oninput="calcTotal()">
+          <span style="font-size:12px;color:var(--muted);">kcal</span>
+        </div>
       </div>
+
       <div class="field">
         <label>昼食</label>
         <textarea id="f-lunch" placeholder="例: ファミマ ブランパン＋トマトジュース200ml"></textarea>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+          <input type="number" id="f-cal-lunch" placeholder="kcal" style="width:120px;" oninput="calcTotal()">
+          <span style="font-size:12px;color:var(--muted);">kcal</span>
+        </div>
       </div>
+
       <div class="field">
         <label>夕食</label>
         <textarea id="f-dinner" placeholder="例: 鶏むね肉150g＋ブロッコリー200g＋鍋"></textarea>
-      </div>
-      <button class="ai-btn" id="estimate-btn" onclick="estimateCalories()">
-        <span id="estimate-icon">✦</span> 食事内容からカロリーをAI推定
-      </button>
-      <p class="note">商品名・量を書くほど精度が上がります。「ローソン サラダチキン プレーン」のように記載するとより正確です。</p>
-
-      <div class="cal-preview" id="cal-preview">
-        <div style="display:flex;align-items:baseline;gap:4px;">
-          <div class="cal-total-num" id="cal-total">—</div>
-          <div class="cal-unit">kcal</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+          <input type="number" id="f-cal-dinner" placeholder="kcal" style="width:120px;" oninput="calcTotal()">
+          <span style="font-size:12px;color:var(--muted);">kcal</span>
         </div>
-        <div class="cal-breakdown" id="cal-breakdown"></div>
-        <button class="apply-btn" onclick="applyCalories()">この値を摂取 kcal に反映 →</button>
       </div>
+
+      <div style="background:var(--pink-light);border-radius:var(--radius-sm);padding:12px 14px;margin-top:8px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:13px;color:var(--muted);font-weight:500;">合計摂取カロリー</span>
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <span id="cal-sum" style="font-size:24px;font-weight:600;color:var(--pink);font-family:'DM Mono',monospace;">—</span>
+          <span style="font-size:13px;color:var(--pink);">kcal</span>
+        </div>
+      </div>
+      <button class="apply-btn" style="margin-top:8px;" onclick="applyTotal()">この合計を摂取 kcal に反映 →</button>
     </div>
 
     <div class="card">
@@ -338,53 +349,21 @@ function showToast(msg, type) {
   setTimeout(function(){ t.classList.remove('show'); }, 2500);
 }
 
-async function estimateCalories() {
-  var b = document.getElementById('f-breakfast').value.trim();
-  var l = document.getElementById('f-lunch').value.trim();
-  var d = document.getElementById('f-dinner').value.trim();
-  if (!b && !l && !d) { showToast('食事内容を入力してください', 'err'); return; }
-
-  var btn = document.getElementById('estimate-btn');
-  var icon = document.getElementById('estimate-icon');
-  btn.disabled = true;
-  icon.innerHTML = '<div class="spinner"></div>';
-
-  var prompt = '以下の食事内容から各食事の推定カロリーをJSONのみで返してください。前置き・説明・マークダウン記号は一切不要です。\n朝食: '+(b||'なし')+'\n昼食: '+(l||'なし')+'\n夕食: '+(d||'なし')+'\n\n返答形式のみ: {"breakfast":数値,"lunch":数値,"dinner":数値,"total":数値,"note":"根拠を1行で"}';
-
-  try {
-    var res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    var data = await res.json();
-    var text = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
-    text = text.replace(/```json|```/g,'').trim();
-    var p = JSON.parse(text);
-    estimatedData = p;
-
-    document.getElementById('cal-total').textContent = (p.total||0).toLocaleString();
-    var rows = '';
-    if (b) rows += '<div class="cal-row"><span>朝食</span><span>'+p.breakfast+' kcal</span></div>';
-    if (l) rows += '<div class="cal-row"><span>昼食</span><span>'+p.lunch+' kcal</span></div>';
-    if (d) rows += '<div class="cal-row"><span>夕食</span><span>'+p.dinner+' kcal</span></div>';
-    if (p.note) rows += '<div style="margin-top:6px;font-size:10px;opacity:0.7;">'+p.note+'</div>';
-    document.getElementById('cal-breakdown').innerHTML = rows;
-    document.getElementById('cal-preview').style.display = 'block';
-  } catch(err) {
-    showToast('推定に失敗しました。再試行してください', 'err');
-  }
-  btn.disabled = false;
-  icon.textContent = '✦';
+function calcTotal() {
+  var b = parseInt(document.getElementById('f-cal-breakfast').value) || 0;
+  var l = parseInt(document.getElementById('f-cal-lunch').value) || 0;
+  var d = parseInt(document.getElementById('f-cal-dinner').value) || 0;
+  var total = b + l + d;
+  document.getElementById('cal-sum').textContent = total > 0 ? total.toLocaleString() : '—';
 }
 
-function applyCalories() {
-  if (!estimatedData) return;
-  document.getElementById('f-intake').value = estimatedData.total || '';
+function applyTotal() {
+  var b = parseInt(document.getElementById('f-cal-breakfast').value) || 0;
+  var l = parseInt(document.getElementById('f-cal-lunch').value) || 0;
+  var d = parseInt(document.getElementById('f-cal-dinner').value) || 0;
+  var total = b + l + d;
+  if (total === 0) { showToast('カロリーを入力してください', 'err'); return; }
+  document.getElementById('f-intake').value = total;
   showToast('摂取 kcal に反映しました ✓', 'ok');
 }
 
@@ -411,10 +390,9 @@ function saveLog() {
 }
 
 function clearForm() {
-  ['f-weight','f-steps','f-burned','f-intake','f-breakfast','f-lunch','f-dinner','f-training']
+  ['f-weight','f-steps','f-burned','f-intake','f-breakfast','f-lunch','f-dinner','f-training','f-cal-breakfast','f-cal-lunch','f-cal-dinner']
     .forEach(function(id){ document.getElementById(id).value=''; });
-  document.getElementById('cal-preview').style.display='none';
-  estimatedData = null;
+  document.getElementById('cal-sum').textContent = '—';
   var d = new Date(); d.setDate(d.getDate()+1);
   document.getElementById('f-date').value = (d.getMonth()+1)+'/'+d.getDate();
 }
