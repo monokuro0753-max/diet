@@ -97,7 +97,7 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 .save-btn:active { opacity: 0.85; transform: scale(0.99); }
 
 /* Metrics */
-.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
 .metric-card { background: var(--card); border-radius: var(--radius); padding: 14px 16px; border: 1px solid var(--border); }
 .metric-val { font-size: 24px; font-weight: 600; font-family: 'DM Mono', monospace; }
 .metric-val.down { color: var(--green); }
@@ -105,7 +105,8 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 .metric-lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
 /* Chart */
-.chart-card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
+.chart-card { background: #FFFFFF; border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid rgba(0,0,0,0.06); }
+@media (prefers-color-scheme: dark) { .chart-card { background: #1C1C1A; } }
 .chart-title { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; }
 .chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .chart-scroll canvas { min-width: 600px; }
@@ -449,55 +450,139 @@ function saveGasUrl() {
 
 function renderGraphs() {
   var recent = logs.slice(-60);
-  var labels = recent.map(function(l){ 
+  var labels = recent.map(function(l){
     var p = l.date.split('/');
     return p[1]+'/'+p[2];
   });
+
+  // メトリクス
   var metrics = document.getElementById('metrics');
   if (logs.length) {
     var last = logs[logs.length-1];
     var wFirst = logs.find(function(l){return l.weight;});
     var diff = (last.weight && wFirst && wFirst.weight) ? (last.weight - wFirst.weight).toFixed(1) : null;
     var isDown = diff !== null && parseFloat(diff) < 0;
+    var lastIntake = last.intake || 0;
+    var lastBurned = last.burned || 0;
+    var balance = lastBurned > 0 ? lastBurned - lastIntake : null;
     metrics.innerHTML =
-      '<div class="metric-card"><div class="metric-val">'+(last.weight||'—')+'<span style="font-size:14px;font-weight:400"> kg</span></div><div class="metric-lbl">最新体重</div></div>'+
-      '<div class="metric-card"><div class="metric-val '+(isDown?'down':'up')+'">'+(diff!==null?(isDown?'':'+') + diff:'—')+'<span style="font-size:14px;font-weight:400"> kg</span></div><div class="metric-lbl">開始からの変化</div></div>';
-  } else {
-    metrics.innerHTML = '<div class="metric-card"><div class="metric-val">—</div><div class="metric-lbl">最新体重</div></div><div class="metric-card"><div class="metric-val">—</div><div class="metric-lbl">変化量</div></div>';
+      '<div class="metric-card"><div class="metric-val">'+(last.weight||'—')+'<span style="font-size:13px;font-weight:400"> kg</span></div><div class="metric-lbl">最新体重</div></div>'+
+      '<div class="metric-card"><div class="metric-val '+(isDown?'down':'up')+'">'+(diff!==null?(isDown?'':'+') + diff:'—')+'<span style="font-size:13px;font-weight:400"> kg</span></div><div class="metric-lbl">開始からの変化</div></div>'+
+      '<div class="metric-card"><div class="metric-val" style="color:var(--blue)">'+(balance!==null?balance.toLocaleString():'—')+'<span style="font-size:13px;font-weight:400"> kcal</span></div><div class="metric-lbl">昨日の消費余力</div></div>'+
+      '<div class="metric-card"><div class="metric-val" style="color:var(--green)">'+(last.steps?last.steps.toLocaleString():'—')+'<span style="font-size:13px;font-weight:400"> 歩</span></div><div class="metric-lbl">最新歩数</div></div>';
   }
 
-  var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-  var tickColor = isDark ? '#666' : '#aaa';
+  var barW = Math.max(recent.length * 28, 320);
+  var lineW = Math.max(recent.length * 24, 320);
 
-  function mk(id, type, data, extra) {
+  function mkChart(id, type, data, opts, w) {
     if (charts[id]) charts[id].destroy();
-    var ctx = document.getElementById(id).getContext('2d');
-    charts[id] = new Chart(ctx, { type:type, data:data, options: Object.assign({
-      responsive:true, maintainAspectRatio:true,
-      plugins:{ legend:{ display:false } },
-      scales:{
-        x:{ ticks:{ font:{size:9}, color:tickColor, maxRotation:45 }, grid:{display:false} },
-        y:{ ticks:{ font:{size:9}, color:tickColor }, grid:{ color:gridColor } }
+    var cvs = document.getElementById(id);
+    cvs.width = w || lineW;
+    cvs.style.width = (w || lineW) + 'px';
+    cvs.style.height = '200px';
+    cvs.height = 200;
+    var ctx = cvs.getContext('2d');
+    var baseOpts = {
+      responsive: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(255,255,255,0.95)',
+          titleColor: '#1A1A1A',
+          bodyColor: '#555',
+          borderColor: 'rgba(0,0,0,0.08)',
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 8
+        }
+      },
+      scales: {
+        x: {
+          ticks: { font: { size: 11, family: 'DM Mono' }, color: '#888', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+          grid: { display: false },
+          border: { display: false }
+        },
+        y: {
+          ticks: { font: { size: 11 }, color: '#888', padding: 6 },
+          grid: { color: 'rgba(0,0,0,0.05)', lineWidth: 1 },
+          border: { display: false }
+        }
       }
-    }, extra||{}) });
+    };
+    Object.assign(baseOpts, opts||{});
+    if (opts && opts.scales) baseOpts.scales = Object.assign(baseOpts.scales, opts.scales);
+    if (opts && opts.plugins) baseOpts.plugins = Object.assign(baseOpts.plugins, opts.plugins);
+    charts[id] = new Chart(ctx, { type: type, data: data, options: baseOpts });
   }
 
-  mk('chart-weight','line',{ labels:labels, datasets:[{
-    data:recent.map(function(l){return l.weight;}),
-    borderColor:'#D4537E', backgroundColor:'rgba(212,83,126,0.08)',
-    tension:0.35, pointRadius:3, pointBackgroundColor:'#D4537E', fill:true, borderWidth:2
-  }]});
+  // 体重グラフ
+  mkChart('chart-weight', 'line', {
+    labels: labels,
+    datasets: [{
+      data: recent.map(function(l){ return l.weight; }),
+      borderColor: '#D4537E',
+      backgroundColor: function(ctx) {
+        var g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+        g.addColorStop(0, 'rgba(212,83,126,0.2)');
+        g.addColorStop(1, 'rgba(212,83,126,0)');
+        return g;
+      },
+      tension: 0.4, pointRadius: 4, pointBackgroundColor: '#fff',
+      pointBorderColor: '#D4537E', pointBorderWidth: 2,
+      fill: true, borderWidth: 2.5
+    }]
+  }, { scales: { y: { ticks: { callback: function(v){ return v+'kg'; } } } } });
 
-  mk('chart-cal','bar',{ labels:labels, datasets:[
-    { label:'消費', data:recent.map(function(l){return l.burned;}), backgroundColor:'rgba(29,158,117,0.7)', borderRadius:4 },
-    { label:'摂取', data:recent.map(function(l){return l.intake;}), backgroundColor:'rgba(212,83,126,0.6)', borderRadius:4 }
-  ]},{ plugins:{ legend:{ display:true, labels:{ font:{size:10}, boxWidth:10, color:tickColor } } } });
+  // カロリーグラフ（消費余力 = 消費 - 摂取）
+  var calBalance = recent.map(function(l){
+    if (l.burned && l.intake) return l.burned - l.intake;
+    return null;
+  });
+  mkChart('chart-cal', 'bar', {
+    labels: labels,
+    datasets: [{
+      label: '消費余力',
+      data: calBalance,
+      backgroundColor: calBalance.map(function(v){
+        if (v === null) return 'rgba(200,200,200,0.3)';
+        return v >= 0 ? 'rgba(29,158,117,0.75)' : 'rgba(212,83,126,0.75)';
+      }),
+      borderRadius: 5,
+      borderSkipped: false
+    }]
+  }, {
+    plugins: {
+      legend: { display: true, labels: { font: { size: 11 }, generateLabels: function(){ return [
+        { text: '黒字（消費 > 摂取）', fillStyle: 'rgba(29,158,117,0.75)', strokeStyle: 'transparent' },
+        { text: '赤字（摂取 > 消費）', fillStyle: 'rgba(212,83,126,0.75)', strokeStyle: 'transparent' }
+      ]; } } }
+    },
+    scales: { y: { ticks: { callback: function(v){ return v+'kcal'; } } } }
+  }, barW);
 
-  mk('chart-steps','bar',{ labels:labels, datasets:[{
-    data:recent.map(function(l){return l.steps;}),
-    backgroundColor:'rgba(55,138,221,0.6)', borderRadius:4
-  }]});
+  // 歩数グラフ
+  mkChart('chart-steps', 'bar', {
+    labels: labels,
+    datasets: [{
+      data: recent.map(function(l){ return l.steps; }),
+      backgroundColor: recent.map(function(l){
+        if (!l.steps) return 'rgba(200,200,200,0.3)';
+        return l.steps >= 8000 ? 'rgba(55,138,221,0.75)' : 'rgba(186,117,23,0.7)';
+      }),
+      borderRadius: 5,
+      borderSkipped: false
+    }]
+  }, {
+    plugins: {
+      legend: { display: true, labels: { font: { size: 11 }, generateLabels: function(){ return [
+        { text: '8000歩以上', fillStyle: 'rgba(55,138,221,0.75)', strokeStyle: 'transparent' },
+        { text: '8000歩未満', fillStyle: 'rgba(186,117,23,0.7)', strokeStyle: 'transparent' }
+      ]; } } }
+    },
+    scales: { y: { ticks: { callback: function(v){ return v.toLocaleString()+'歩'; } } } }
+  }, barW);
 }
 
 function renderLog() {
