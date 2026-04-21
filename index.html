@@ -15,7 +15,7 @@
   --pink-mid: rgba(212,83,126,0.6);
   --green: #1D9E75;
   --blue: #378ADD;
-  --bg: #F7F6F3;
+  --bg: #EFEFED;
   --card: #FFFFFF;
   --text: #1A1A1A;
   --muted: #7A7A7A;
@@ -37,7 +37,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 body { display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; }
 
 /* Header */
-.header { padding: 56px 20px 0; }
+.header { padding: 56px 20px 0; background: var(--bg); }
 .header-top { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
 .app-title { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; }
 .app-title span { color: var(--pink); }
@@ -50,30 +50,28 @@ body { display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; 
 
 /* Scroll area */
 .scroll { flex: 1; overflow-y: auto; padding: 0 20px 100px; -webkit-overflow-scrolling: touch; }
+#page-input .card { background: #FFFFFF !important; border: 1.5px solid #E0E0E0 !important; }
+#page-input .card-label { color: #444444 !important; }
+#page-input label { color: #555555 !important; }
 .page { display: none; }
 .page.active { display: block; }
 
 /* Cards */
-.card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
+.card { background: #FFFFFF; border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid rgba(0,0,0,0.09); }
+@media (prefers-color-scheme: dark) { .card { background: #242422; border-color: rgba(255,255,255,0.08); } }
 .card-label { font-size: 11px; font-weight: 600; color: #888; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
 
 /* Fields */
 .field { margin-bottom: 12px; }
 .field:last-child { margin-bottom: 0; }
-.field label { display: block; font-size: 12px; color: #888; margin-bottom: 5px; font-weight: 600; letter-spacing: 0.03em; }
+.field label { display: block; font-size: 12px; color: #555555; margin-bottom: 5px; font-weight: 600; letter-spacing: 0.03em; }
 input[type=text], input[type=number], input[type=date], textarea {
   width: 100%; font-size: 15px; font-family: 'DM Sans', sans-serif;
-  padding: 10px 12px; border: 1.5px solid rgba(0,0,0,0.15);
-  border-radius: var(--radius-sm); background: #FFFFFF;
-  color: #1A1A1A; outline: none; transition: border-color 0.15s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  padding: 10px 12px; border: 1.5px solid #DDDDDD;
+  border-radius: var(--radius-sm); background: #F9F9F9;
+  color: #111111; outline: none; transition: border-color 0.15s;
 }
-@media (prefers-color-scheme: dark) {
-  input[type=text], input[type=number], input[type=date], textarea {
-    background: #2A2A28; color: #F0EEE8; border-color: rgba(255,255,255,0.15);
-  }
-}
-input:focus, textarea:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(212,83,126,0.1); }
+input:focus, textarea:focus { border-color: #D4537E; background: #FFFFFF; box-shadow: 0 0 0 3px rgba(212,83,126,0.08); }
 textarea { height: 56px; resize: none; line-height: 1.5; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
@@ -112,10 +110,8 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 .metric-lbl { font-size: 11px; color: #888; margin-top: 4px; font-weight: 500; letter-spacing: 0.03em; }
 
 /* Chart */
-.chart-card { background: #FFFFFF; border-radius: var(--radius); padding: 16px 14px; margin-bottom: 12px; border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-@media (prefers-color-scheme: dark) { .chart-card { background: #1E1E1C; border-color: rgba(255,255,255,0.08); } }
-.chart-title { font-size: 13px; font-weight: 600; color: #333333; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 14px; }
-@media (prefers-color-scheme: dark) { .chart-title { color: #CCCCCC; } }
+.chart-card { background: #FFFFFF; border-radius: var(--radius); padding: 16px 14px; margin-bottom: 12px; border: 1.5px solid #E0E0E0; }
+.chart-title { font-size: 13px; font-weight: 700; color: #222222; letter-spacing: 0.03em; text-transform: none; margin-bottom: 14px; }
 .chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .chart-scroll canvas { min-width: 600px; }
 
@@ -263,12 +259,12 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
       </div>
     </div>
 
-    <div class="card" id="goal-card" style="display:none;">
-      <div class="card-label" style="display:flex;align-items:center;justify-content:space-between;">
+    <div class="card" id="goal-card" style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.1);">
+      <div class="card-label" style="display:flex;align-items:center;justify-content:space-between;color:#333;">
         <span>今日の目標</span>
-        <span id="goal-date-label" style="font-size:11px;color:var(--muted);font-weight:400;"></span>
+        <span id="goal-date-label" style="font-size:11px;color:#888;font-weight:400;"></span>
       </div>
-      <div id="goal-content"></div>
+      <div id="goal-content"><div style="font-size:12px;color:#888;padding:6px 0;">連携タブでURLを設定すると目標が表示されます</div></div>
     </div>
 
     <button class="save-btn" onclick="saveLog()">保存する</button>
@@ -277,8 +273,8 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
   <!-- グラフ -->
   <div id="page-graph" class="page">
     <div class="metric-grid" id="metrics"></div>
-    <div class="card" id="today-summary" style="display:none;padding:12px 16px;margin-bottom:12px;">
-      <div class="card-label">本日の進捗</div>
+    <div id="today-summary" style="display:none;background:#FFFFFF;border-radius:16px;padding:14px 16px;margin-bottom:12px;border:1px solid #E0E0E0;">
+      <div style="font-size:11px;font-weight:600;color:#555;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">本日の進捗</div>
       <div id="today-summary-content"></div>
     </div>
     <div class="chart-card">
@@ -501,19 +497,21 @@ function saveGasUrl() {
 }
 
 async function fetchGoal(dateVal) {
-  if (!gasUrl) return;
   var card = document.getElementById('goal-card');
-  var content = document.getElementById('goal-content');
+  var gc = document.getElementById('goal-content');
   document.getElementById('goal-date-label').textContent = dateVal;
-  card.style.display = 'block';
-  content.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">読み込み中...</div>';
+  if (!gasUrl) {
+    gc.innerHTML = '<div style="font-size:12px;color:#888;padding:6px 0;">連携タブでURLを設定すると目標が表示されます</div>';
+    return;
+  }
+  gc.innerHTML = '<div style="font-size:12px;color:#888;padding:6px 0;">読み込み中...</div>';
 
   try {
     var url = gasUrl + '?date=' + encodeURIComponent(dateVal);
     var res = await fetch(url);
     var g = await res.json();
     if (!g || Object.keys(g).length === 0) {
-      content.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">この日の目標データがありません</div>';
+      gc.innerHTML = '<div style="font-size:12px;color:#888;padding:6px 0;">この日の目標データがありません</div>';
       return;
     }
 
@@ -566,14 +564,14 @@ async function fetchGoal(dateVal) {
     html += '<div class="progress-bar-wrap"><div class="progress-bar" style="width:'+burnedPct+'%;background:'+burnedColor+';"></div></div>';
     html += '</div></div>';
 
-    content.innerHTML = html;
+    gc.innerHTML = html;
   } catch(err) {
-    content.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">目標データの取得に失敗しました</div>';
+    gc.innerHTML = '<div style="font-size:12px;color:#888;padding:6px 0;">目標データの取得に失敗しました</div>';
   }
 }
 
 function renderGraphs() {
-  var recent = logs.slice(-30);
+  var recent = logs.slice(-20);
   var labels = recent.map(function(l){
     var p = l.date.split('/');
     return p[1]+'/'+p[2];
@@ -591,10 +589,16 @@ function renderGraphs() {
     var isDayDown = dayDiff !== null && parseFloat(dayDiff) < 0;
     var balance = (last.burned && last.intake) ? last.burned - last.intake : null;
     metricsEl.innerHTML =
-      '<div class="metric-card"><div class="metric-val">'+(last.weight ? Math.round(last.weight*10)/10 : '—')+'<span style="font-size:12px;font-weight:400"> kg</span></div><div class="metric-lbl">最新体重</div></div>'+
-      '<div class="metric-card"><div class="metric-val '+(isDown?'down':'up')+'">'+(totalDiff!==null?(isDown?'':'+') + totalDiff:'—')+'<span style="font-size:12px;font-weight:400"> kg</span></div><div class="metric-lbl">開始からの変化</div></div>'+
-      '<div class="metric-card"><div class="metric-val '+(isDayDown?'down':'up')+'">'+(dayDiff!==null?(isDayDown?'':'+') + dayDiff:'—')+'<span style="font-size:12px;font-weight:400"> kg</span></div><div class="metric-lbl">前日比（体重）</div></div>'+
-      '<div class="metric-card"><div class="metric-val" style="color:'+(balance!==null&&balance>=0?'#1D9E75':'#D4537E')+'">'+(balance!==null?Math.round(balance).toLocaleString():'—')+'<span style="font-size:10px;font-weight:400"> kcal</span></div><div class="metric-lbl">消費余力</div></div>';
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:#111;">'+(last.weight ? Math.round(last.weight*10)/10 : '—')+'<span style="font-size:11px;font-weight:400"> kg</span></div><div class="metric-lbl" style="color:#666;">最新体重</div></div>'+
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val '+(isDown?'down':'up')+'" style="'+(isDown?'color:#1D9E75':'color:#D4537E')+'">'+(totalDiff!==null?(isDown?'':'+') + totalDiff:'—')+'<span style="font-size:11px;font-weight:400;color:#666;"> kg</span></div><div class="metric-lbl" style="color:#666;">開始からの変化</div></div>'+
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val '+(isDayDown?'down':'up')+'" style="'+(isDayDown?'color:#1D9E75':'color:#D4537E')+'">'+(dayDiff!==null?(isDayDown?'':'+') + dayDiff:'—')+'<span style="font-size:11px;font-weight:400;color:#666;"> kg</span></div><div class="metric-lbl" style="color:#666;">前日比</div></div>'+
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:'+(balance!==null&&balance>=0?'#1D9E75':'#D4537E')+'">'+(balance!==null?Math.round(balance).toLocaleString():'—')+'<span style="font-size:10px;font-weight:400;color:#666;"> kcal</span></div><div class="metric-lbl" style="color:#666;">消費余力</div></div>';
+  } else {
+    metricsEl.innerHTML =
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:#111;">—</div><div class="metric-lbl" style="color:#666;">最新体重</div></div>'+
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:#111;">—</div><div class="metric-lbl" style="color:#666;">開始からの変化</div></div>'+
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:#111;">—</div><div class="metric-lbl" style="color:#666;">前日比</div></div>'+
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:#111;">—</div><div class="metric-lbl" style="color:#666;">消費余力</div></div>';
   }
 
   // 本日の進捗サマリー
@@ -627,51 +631,70 @@ function renderGraphs() {
     summaryCard.style.display = 'none';
   }
 
-  // チャート描画設定
+  // Chart設定
+  // dprを使わず、Chart.jsのdevicePixelRatioに任せる
   var dpr = window.devicePixelRatio || 1;
-  var logicalW = Math.max(recent.length * 40, 320);
-  var TICK_COLOR = '#444444';
-  var GRID_COLOR = 'rgba(0,0,0,0.07)';
-  var LEGEND_COLOR = '#333333';
+  var colW = 44;
+  var logicalW = Math.max(recent.length * colW, 320);
+  var chartH = 240;
+  var TICK = '#333333';
+  var GRID = 'rgba(0,0,0,0.07)';
+  var LEG  = '#222222';
 
-  function mkChart(id, type, datasets, yCallback, legendItems, w) {
+  function mkChart(id, type, datasets, yCb, legendItems, w) {
     if (charts[id]) charts[id].destroy();
     var cvs = document.getElementById(id);
     var lw = w || logicalW;
-    cvs.style.width  = lw + 'px';
-    cvs.style.height = '200px';
-    cvs.width  = Math.round(lw * dpr);
-    cvs.height = Math.round(200 * dpr);
-    var ctx = cvs.getContext('2d');
-    ctx.scale(dpr, dpr);
 
-    var bgPlugin = {
+    // リセット
+    cvs.removeAttribute('width');
+    cvs.removeAttribute('height');
+    cvs.style.width  = lw + 'px';
+    cvs.style.height = chartH + 'px';
+
+    var whiteBg = {
       id: 'whiteBg',
       beforeDraw: function(chart) {
         var c = chart.ctx;
         c.save();
         c.fillStyle = '#FFFFFF';
-        c.fillRect(0, 0, lw, 200);
+        c.fillRect(0, 0, chart.width, chart.height);
         c.restore();
       }
     };
 
-    charts[id] = new Chart(ctx, {
+    charts[id] = new Chart(cvs, {
       type: type,
       data: { labels: labels, datasets: datasets },
       options: {
         responsive: false,
         animation: false,
-        devicePixelRatio: 1,
-        layout: { padding: { left: 2, right: 10, top: 8, bottom: 4 } },
+        // Chart.jsに正しいdprを渡す → フォントが正しくレンダリングされる
+        devicePixelRatio: dpr,
+        layout: { padding: { left: 4, right: 14, top: 6, bottom: 4 } },
         plugins: {
           legend: {
             display: !!(legendItems && legendItems.length),
+            position: 'top',
+            align: 'start',
             labels: {
-              font: { size: 12, family: 'sans-serif', weight: '500' },
-              color: LEGEND_COLOR,
-              boxWidth: 14, boxHeight: 14, padding: 12,
-              generateLabels: legendItems ? function(){ return legendItems.map(function(l){ return Object.assign({ fontColor: LEGEND_COLOR }, l); }); } : undefined
+              // フォントサイズはCSS論理ピクセル単位で指定（Chart.jsがdpr補正）
+              font: { size: 12, family: 'Arial, sans-serif' },
+              color: LEG,
+              boxWidth: 14,
+              boxHeight: 14,
+              padding: 12,
+              generateLabels: legendItems
+                ? function(){ return legendItems.map(function(li){
+                    return {
+                      text: li.text,
+                      fillStyle: li.fillStyle,
+                      strokeStyle: 'transparent',
+                      lineWidth: 0,
+                      fontColor: LEG
+                    };
+                  }); }
+                : undefined
             }
           },
           tooltip: {
@@ -687,72 +710,72 @@ function renderGraphs() {
         scales: {
           x: {
             ticks: {
-              font: { size: 12, family: 'sans-serif', weight: '400' },
-              color: TICK_COLOR,
+              font: { size: 12, family: 'Arial, sans-serif' },
+              color: TICK,
               maxRotation: 0,
               autoSkip: true,
-              maxTicksLimit: 8
+              maxTicksLimit: 7
             },
             grid: { display: false },
             border: { display: false }
           },
           y: {
             ticks: {
-              font: { size: 12, family: 'sans-serif', weight: '400' },
-              color: TICK_COLOR,
+              font: { size: 12, family: 'Arial, sans-serif' },
+              color: TICK,
               padding: 8,
               maxTicksLimit: 5,
-              callback: yCallback || function(v){ return Math.round(v).toLocaleString(); }
+              callback: yCb || function(v){ return Math.round(v).toLocaleString(); }
             },
-            grid: { color: GRID_COLOR, lineWidth: 1 },
+            grid: { color: GRID },
             border: { display: false }
           }
         }
       },
-      plugins: [bgPlugin]
+      plugins: [whiteBg]
     });
   }
 
-  // 体重グラフ（実績＋目標）
+  // 体重グラフ
   mkChart('chart-weight', 'line', [
     {
-      label: '実績',
+      label: '実績体重',
       data: recent.map(function(l){ return l.weight ? Math.round(l.weight*10)/10 : null; }),
       borderColor: '#D4537E', backgroundColor: 'rgba(212,83,126,0.08)',
-      tension: 0.4, pointRadius: 4, pointBackgroundColor: '#fff',
+      tension: 0.4, pointRadius: 5, pointBackgroundColor: '#fff',
       pointBorderColor: '#D4537E', pointBorderWidth: 2,
-      fill: true, borderWidth: 2, spanGaps: true
+      fill: true, borderWidth: 2.5, spanGaps: true
     },
     {
-      label: '目標',
+      label: '目標体重',
       data: recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight*10)/10 : null; }),
       borderColor: '#378ADD', backgroundColor: 'transparent',
       tension: 0.4, pointRadius: 3, pointBackgroundColor: '#378ADD',
-      borderWidth: 1.5, borderDash: [5,4], spanGaps: true
+      borderWidth: 2, borderDash: [6,4], spanGaps: true
     }
   ],
   function(v){ return v + 'kg'; },
   [
-    { text: '実績体重', fillStyle: '#D4537E', strokeStyle: 'transparent', lineWidth: 0 },
-    { text: '目標体重', fillStyle: '#378ADD', strokeStyle: 'transparent', lineWidth: 0 }
+    { text: '実績体重', fillStyle: '#D4537E' },
+    { text: '目標体重', fillStyle: '#378ADD' }
   ]);
 
   // カロリー収支グラフ
-  var calBalance = recent.map(function(l){
+  var calBal = recent.map(function(l){
     if (l.burned && l.intake) return Math.round(l.burned - l.intake);
     return null;
   });
   mkChart('chart-cal', 'bar', [{
-    data: calBalance,
-    backgroundColor: calBalance.map(function(v){
+    data: calBal,
+    backgroundColor: calBal.map(function(v){
       return (v===null) ? 'rgba(200,200,200,0.3)' : (v>=0 ? '#1D9E75' : '#D4537E');
     }),
     borderRadius: 5, borderSkipped: false
   }],
   function(v){ return Math.round(v).toLocaleString()+'kcal'; },
   [
-    { text: '黒字（余力あり）', fillStyle: '#1D9E75', strokeStyle: 'transparent', lineWidth: 0 },
-    { text: '赤字（超過）', fillStyle: '#D4537E', strokeStyle: 'transparent', lineWidth: 0 }
+    { text: '黒字（余力あり）', fillStyle: '#1D9E75' },
+    { text: '赤字（超過）',     fillStyle: '#D4537E' }
   ], logicalW);
 
   // 歩数グラフ
@@ -766,8 +789,8 @@ function renderGraphs() {
   }],
   function(v){ return Math.round(v).toLocaleString()+'歩'; },
   [
-    { text: '8,000歩以上', fillStyle: '#378ADD', strokeStyle: 'transparent', lineWidth: 0 },
-    { text: '8,000歩未満', fillStyle: '#BA7517', strokeStyle: 'transparent', lineWidth: 0 }
+    { text: '8,000歩以上', fillStyle: '#378ADD' },
+    { text: '8,000歩未満', fillStyle: '#BA7517' }
   ], logicalW);
 }
 
