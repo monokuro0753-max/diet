@@ -55,20 +55,25 @@ body { display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; 
 
 /* Cards */
 .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
-.card-label { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; }
+.card-label { font-size: 11px; font-weight: 600; color: #888; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
 
 /* Fields */
 .field { margin-bottom: 12px; }
 .field:last-child { margin-bottom: 0; }
-.field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+.field label { display: block; font-size: 12px; color: #888; margin-bottom: 5px; font-weight: 600; letter-spacing: 0.03em; }
 input[type=text], input[type=number], input[type=date], textarea {
   width: 100%; font-size: 15px; font-family: 'DM Sans', sans-serif;
-  padding: 10px 12px; border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm); background: var(--card);
-  color: var(--text); outline: none; transition: border-color 0.15s;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+  padding: 10px 12px; border: 1.5px solid rgba(0,0,0,0.15);
+  border-radius: var(--radius-sm); background: #FFFFFF;
+  color: #1A1A1A; outline: none; transition: border-color 0.15s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
-input:focus, textarea:focus { border-color: var(--pink); box-shadow: inset 0 1px 3px rgba(212,83,126,0.1); }
+@media (prefers-color-scheme: dark) {
+  input[type=text], input[type=number], input[type=date], textarea {
+    background: #2A2A28; color: #F0EEE8; border-color: rgba(255,255,255,0.15);
+  }
+}
+input:focus, textarea:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(212,83,126,0.1); }
 textarea { height: 56px; resize: none; line-height: 1.5; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
@@ -98,15 +103,17 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 
 /* Metrics */
 .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.metric-card { background: var(--card); border-radius: var(--radius); padding: 14px 16px; border: 1px solid var(--border); }
-.metric-val { font-size: 24px; font-weight: 600; font-family: 'DM Mono', monospace; }
-.metric-val.down { color: var(--green); }
-.metric-val.up { color: var(--pink); }
-.metric-lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.metric-card { background: #FFFFFF; border-radius: var(--radius); padding: 14px 16px; border: 1px solid rgba(0,0,0,0.07); }
+@media (prefers-color-scheme: dark) { .metric-card { background: #222220; border-color: rgba(255,255,255,0.07); } }
+.metric-val { font-size: 22px; font-weight: 600; font-family: 'DM Mono', monospace; color: #1A1A1A; }
+@media (prefers-color-scheme: dark) { .metric-val { color: #F0EEE8; } }
+.metric-val.down { color: #1D9E75 !important; }
+.metric-val.up { color: #D4537E !important; }
+.metric-lbl { font-size: 11px; color: #888; margin-top: 4px; font-weight: 500; letter-spacing: 0.03em; }
 
 /* Chart */
-.chart-card { background: #FFFFFF; border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid rgba(0,0,0,0.06); }
-@media (prefers-color-scheme: dark) { .chart-card { background: #1C1C1A; } }
+.chart-card { background: #F8F8F6; border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid rgba(0,0,0,0.08); }
+@media (prefers-color-scheme: dark) { .chart-card { background: #222220; border-color: rgba(255,255,255,0.06); } }
 .chart-title { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; }
 .chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .chart-scroll canvas { min-width: 600px; }
@@ -576,7 +583,7 @@ function renderGraphs() {
       '<div class="metric-card"><div class="metric-val" style="color:var(--green)">'+(last.steps?Math.round(last.steps).toLocaleString():'—')+'<span style="font-size:11px;font-weight:400"> 歩</span></div><div class="metric-lbl">最新歩数</div></div>';
   }
 
-  var W = Math.max(recent.length * 32, 300);
+  var W = Math.max(recent.length * 36, 300);
 
   function mkChart(id, type, data, opts, w) {
     if (charts[id]) charts[id].destroy();
@@ -584,32 +591,45 @@ function renderGraphs() {
     var cw = w || W;
     cvs.width = cw;
     cvs.style.width = cw + 'px';
-    cvs.style.height = '180px';
-    cvs.height = 180;
+    cvs.style.height = '200px';
+    cvs.height = 200;
     var ctx = cvs.getContext('2d');
+
+    // White background plugin
+    var bgPlugin = {
+      id: 'bg',
+      beforeDraw: function(chart) {
+        var c = chart.ctx;
+        c.save();
+        c.fillStyle = '#FFFFFF';
+        c.fillRect(0, 0, chart.width, chart.height);
+        c.restore();
+      }
+    };
+
     var baseOpts = {
       responsive: false,
       animation: false,
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#fff',
+          backgroundColor: '#FFFFFF',
           titleColor: '#1A1A1A',
-          bodyColor: '#555',
-          borderColor: 'rgba(0,0,0,0.1)',
+          bodyColor: '#444',
+          borderColor: 'rgba(0,0,0,0.12)',
           borderWidth: 1,
           padding: 10,
           cornerRadius: 8,
           callbacks: {
-            label: function(ctx){ return Math.round(ctx.parsed.y).toLocaleString(); }
+            label: function(ctx){ return ' ' + Math.round(ctx.parsed.y).toLocaleString(); }
           }
         }
       },
       scales: {
         x: {
           ticks: {
-            font: { size: 12, family: 'DM Mono' },
-            color: '#666',
+            font: { size: 11, family: "'DM Mono', monospace" },
+            color: '#666666',
             maxRotation: 0,
             autoSkip: true,
             maxTicksLimit: 8
@@ -619,21 +639,35 @@ function renderGraphs() {
         },
         y: {
           ticks: {
-            font: { size: 12 },
-            color: '#666',
+            font: { size: 11, family: "'DM Sans', sans-serif" },
+            color: '#666666',
             padding: 8,
+            maxTicksLimit: 5,
             callback: function(v){ return Math.round(v).toLocaleString(); }
           },
-          grid: { color: 'rgba(0,0,0,0.05)' },
+          grid: { color: 'rgba(0,0,0,0.06)', lineWidth: 1 },
           border: { display: false }
         }
       }
     };
+
     if (opts) {
-      if (opts.plugins) Object.assign(baseOpts.plugins, opts.plugins);
-      if (opts.scales && opts.scales.y) Object.assign(baseOpts.scales.y, opts.scales.y);
+      if (opts.plugins) {
+        Object.keys(opts.plugins).forEach(function(k){
+          baseOpts.plugins[k] = Object.assign(baseOpts.plugins[k]||{}, opts.plugins[k]);
+        });
+      }
+      if (opts.scales && opts.scales.y) {
+        Object.assign(baseOpts.scales.y, opts.scales.y);
+      }
     }
-    charts[id] = new Chart(ctx, { type: type, data: data, options: baseOpts });
+
+    charts[id] = new Chart(ctx, {
+      type: type,
+      data: data,
+      options: baseOpts,
+      plugins: [bgPlugin]
+    });
   }
 
   // 体重グラフ（実績＋目標）
@@ -641,29 +675,25 @@ function renderGraphs() {
     labels: labels,
     datasets: [
       {
-        label: '実績体重',
-        data: recent.map(function(l){ return l.weight ? Math.round(l.weight * 10) / 10 : null; }),
+        label: '実績',
+        data: recent.map(function(l){ return l.weight ? Math.round(l.weight*10)/10 : null; }),
         borderColor: '#D4537E',
         backgroundColor: 'rgba(212,83,126,0.08)',
-        tension: 0.4,
-        pointRadius: 4,
+        tension: 0.4, pointRadius: 4,
         pointBackgroundColor: '#fff',
         pointBorderColor: '#D4537E',
         pointBorderWidth: 2,
-        fill: true,
-        borderWidth: 2.5,
-        spanGaps: true
+        fill: true, borderWidth: 2.5, spanGaps: true
       },
       {
-        label: '目標体重',
-        data: recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight * 10) / 10 : null; }),
+        label: '目標',
+        data: recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight*10)/10 : null; }),
         borderColor: '#378ADD',
         backgroundColor: 'transparent',
-        tension: 0.4,
-        pointRadius: 3,
+        tension: 0.4, pointRadius: 3,
         pointBackgroundColor: '#378ADD',
         borderWidth: 1.5,
-        borderDash: [4, 4],
+        borderDash: [5,4],
         spanGaps: true
       }
     ]
@@ -671,13 +701,13 @@ function renderGraphs() {
     plugins: {
       legend: {
         display: true,
-        labels: { font: { size: 11 }, boxWidth: 12 }
+        labels: { font: { size: 12 }, boxWidth: 14, color: '#444', padding: 12 }
       }
     },
     scales: { y: { ticks: { callback: function(v){ return v+'kg'; } } } }
   });
 
-  // カロリー収支グラフ（消費余力 = 消費 - 摂取）
+  // カロリー収支グラフ
   var calBalance = recent.map(function(l){
     if (l.burned && l.intake) return Math.round(l.burned - l.intake);
     return null;
@@ -685,12 +715,13 @@ function renderGraphs() {
   mkChart('chart-cal', 'bar', {
     labels: labels,
     datasets: [{
+      label: '消費余力',
       data: calBalance,
       backgroundColor: calBalance.map(function(v){
-        if (v === null) return 'rgba(200,200,200,0.2)';
+        if (v === null) return 'rgba(200,200,200,0.3)';
         return v >= 0 ? '#1D9E75' : '#D4537E';
       }),
-      borderRadius: 4,
+      borderRadius: 5,
       borderSkipped: false
     }]
   }, {
@@ -698,11 +729,11 @@ function renderGraphs() {
       legend: {
         display: true,
         labels: {
-          font: { size: 11 },
+          font: { size: 12 }, color: '#444', padding: 12,
           generateLabels: function(){
             return [
-              { text: '黒字', fillStyle: '#1D9E75', strokeStyle: 'transparent', lineWidth: 0 },
-              { text: '赤字', fillStyle: '#D4537E', strokeStyle: 'transparent', lineWidth: 0 }
+              { text: '黒字（余力あり）', fillStyle: '#1D9E75', strokeStyle: 'transparent', lineWidth: 0 },
+              { text: '赤字（超過）', fillStyle: '#D4537E', strokeStyle: 'transparent', lineWidth: 0 }
             ];
           }
         }
@@ -720,7 +751,7 @@ function renderGraphs() {
         if (!l.steps) return 'rgba(200,200,200,0.2)';
         return l.steps >= 8000 ? '#378ADD' : '#BA7517';
       }),
-      borderRadius: 4,
+      borderRadius: 5,
       borderSkipped: false
     }]
   }, {
@@ -728,11 +759,11 @@ function renderGraphs() {
       legend: {
         display: true,
         labels: {
-          font: { size: 11 },
+          font: { size: 12 }, color: '#444', padding: 12,
           generateLabels: function(){
             return [
-              { text: '8000歩以上', fillStyle: '#378ADD', strokeStyle: 'transparent', lineWidth: 0 },
-              { text: '8000歩未満', fillStyle: '#BA7517', strokeStyle: 'transparent', lineWidth: 0 }
+              { text: '8,000歩以上', fillStyle: '#378ADD', strokeStyle: 'transparent', lineWidth: 0 },
+              { text: '8,000歩未満', fillStyle: '#BA7517', strokeStyle: 'transparent', lineWidth: 0 }
             ];
           }
         }
