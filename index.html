@@ -169,21 +169,21 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
       <div class="row2">
         <div class="field">
           <label>体重 (kg)</label>
-          <input type="number" id="f-weight" step="0.1" placeholder="77.6">
+          <input type="number" id="f-weight" step="0.1" >
         </div>
         <div class="field">
           <label>歩数</label>
-          <input type="number" id="f-steps" placeholder="8000">
+          <input type="number" id="f-steps" >
         </div>
       </div>
       <div class="row2">
         <div class="field">
           <label>消費 (kcal)</label>
-          <input type="number" id="f-burned" placeholder="2500">
+          <input type="number" id="f-burned" >
         </div>
         <div class="field">
           <label>摂取 (kcal)</label>
-          <input type="number" id="f-intake" placeholder="自動計算可">
+          <input type="number" id="f-intake" >
         </div>
       </div>
     </div>
@@ -193,27 +193,27 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 
       <div class="field">
         <label>朝食</label>
-        <textarea id="f-breakfast" placeholder="例: ローソン サラダチキン プレーン＋ゆで卵2個"></textarea>
+        <textarea id="f-breakfast" ></textarea>
         <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-          <input type="number" id="f-cal-breakfast" placeholder="kcal" style="width:120px;" oninput="calcTotal()">
+          <input type="number" id="f-cal-breakfast"  style="width:120px;" oninput="calcTotal()">
           <span style="font-size:12px;color:var(--muted);">kcal</span>
         </div>
       </div>
 
       <div class="field">
         <label>昼食</label>
-        <textarea id="f-lunch" placeholder="例: ファミマ ブランパン＋トマトジュース200ml"></textarea>
+        <textarea id="f-lunch" ></textarea>
         <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-          <input type="number" id="f-cal-lunch" placeholder="kcal" style="width:120px;" oninput="calcTotal()">
+          <input type="number" id="f-cal-lunch"  style="width:120px;" oninput="calcTotal()">
           <span style="font-size:12px;color:var(--muted);">kcal</span>
         </div>
       </div>
 
       <div class="field">
         <label>夕食</label>
-        <textarea id="f-dinner" placeholder="例: 鶏むね肉150g＋ブロッコリー200g＋鍋"></textarea>
+        <textarea id="f-dinner" ></textarea>
         <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-          <input type="number" id="f-cal-dinner" placeholder="kcal" style="width:120px;" oninput="calcTotal()">
+          <input type="number" id="f-cal-dinner"  style="width:120px;" oninput="calcTotal()">
           <span style="font-size:12px;color:var(--muted);">kcal</span>
         </div>
       </div>
@@ -231,7 +231,7 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
     <div class="card">
       <div class="card-label">トレーニング・サウナ</div>
       <div class="field">
-        <textarea id="f-training" placeholder="例: サウナ5セット、ランニング5km、ジム筋トレ30分"></textarea>
+        <textarea id="f-training" ></textarea>
       </div>
     </div>
 
@@ -334,29 +334,35 @@ function today() {
 }
 document.getElementById('f-date').value = today();
 
-document.getElementById('f-date').addEventListener('change', function() {
-  var dateVal = formatDateForSheet(this.value);
+function loadByDate(dateVal) {
   var existing = logs.find(function(l){ return l.date === dateVal; });
   if (existing) {
-    document.getElementById('f-weight').value = existing.weight || '';
-    document.getElementById('f-steps').value = existing.steps || '';
-    document.getElementById('f-burned').value = existing.burned || '';
-    document.getElementById('f-intake').value = existing.intake || '';
+    document.getElementById('f-weight').value = existing.weight != null ? existing.weight : '';
+    document.getElementById('f-steps').value = existing.steps != null ? existing.steps : '';
+    document.getElementById('f-burned').value = existing.burned != null ? existing.burned : '';
+    document.getElementById('f-intake').value = existing.intake != null ? existing.intake : '';
     document.getElementById('f-breakfast').value = existing.breakfast || '';
-    document.getElementById('f-cal-breakfast').value = existing.calBreakfast || '';
+    document.getElementById('f-cal-breakfast').value = existing.calBreakfast != null ? existing.calBreakfast : '';
     document.getElementById('f-lunch').value = existing.lunch || '';
-    document.getElementById('f-cal-lunch').value = existing.calLunch || '';
+    document.getElementById('f-cal-lunch').value = existing.calLunch != null ? existing.calLunch : '';
     document.getElementById('f-dinner').value = existing.dinner || '';
-    document.getElementById('f-cal-dinner').value = existing.calDinner || '';
+    document.getElementById('f-cal-dinner').value = existing.calDinner != null ? existing.calDinner : '';
     document.getElementById('f-training').value = existing.training || '';
     calcTotal();
-    showToast('過去のデータを読み込みました', 'ok');
   } else {
-    ['f-weight','f-steps','f-burned','f-intake','f-breakfast','f-lunch','f-dinner','f-training','f-cal-breakfast','f-cal-lunch','f-cal-dinner']
+    ['f-weight','f-steps','f-burned','f-intake','f-breakfast','f-lunch','f-dinner',
+     'f-training','f-cal-breakfast','f-cal-lunch','f-cal-dinner']
       .forEach(function(id){ document.getElementById(id).value=''; });
     document.getElementById('cal-sum').textContent = '—';
   }
+}
+
+document.getElementById('f-date').addEventListener('change', function() {
+  loadByDate(formatDateForSheet(this.value));
 });
+
+// 初期表示：今日のデータがあれば読み込む
+loadByDate(formatDateForSheet(document.getElementById('f-date').value));
 
 function formatDateForSheet(val) {
   if (!val) return '';
