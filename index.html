@@ -794,21 +794,62 @@ function renderGraphs() {
   ], logicalW);
 }
 
+function editLog(date) {
+  // 入力タブに移動して該当日付をセット
+  switchTab('input');
+  // 日付をYYYY-MM-DD形式に変換してセット
+  var p = date.split('/');
+  var y = parseInt(p[0]);
+  var m = ('0'+parseInt(p[1])).slice(-2);
+  var d = ('0'+parseInt(p[2])).slice(-2);
+  document.getElementById('f-date').value = y+'-'+m+'-'+d;
+  loadByDate(date);
+  fetchGoal(date);
+  showToast(date+' のデータを読み込みました', 'ok');
+  window.scrollTo(0, 0);
+}
+
+function deleteLog(date) {
+  if (!confirm(date+' のデータを削除しますか？')) return;
+  logs = logs.filter(function(l){ return l.date !== date; });
+  localStorage.setItem('dietlogs_v2', JSON.stringify(logs));
+  renderLog();
+  showToast('削除しました', 'ok');
+}
+
 function renderLog() {
   var el = document.getElementById('log-list');
   if (!logs.length) { el.innerHTML='<div class="empty">まだ記録がありません</div>'; return; }
-  el.innerHTML = logs.slice().reverse().slice(0,40).map(function(l){
+  el.innerHTML = logs.slice().reverse().slice(0,60).map(function(l){
     var stats = '';
     if (l.weight) stats += '<div class="log-stat"><span>体重</span>'+l.weight+'kg</div>';
-    if (l.intake) stats += '<div class="log-stat"><span>摂取</span>'+l.intake+'kcal</div>';
-    if (l.burned) stats += '<div class="log-stat"><span>消費</span>'+l.burned+'kcal</div>';
-    if (l.steps) stats += '<div class="log-stat"><span>歩数</span>'+(l.steps.toLocaleString())+'</div>';
+    if (l.intake) stats += '<div class="log-stat"><span>摂取</span>'+Math.round(l.intake).toLocaleString()+'kcal</div>';
+    if (l.burned) stats += '<div class="log-stat"><span>消費</span>'+Math.round(l.burned).toLocaleString()+'kcal</div>';
+    if (l.steps) stats += '<div class="log-stat"><span>歩数</span>'+Math.round(l.steps).toLocaleString()+'</div>';
+    var d = l.date;
     return '<div class="log-item">'+
-      '<div class="log-date-badge">'+l.date+'</div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">'+
+        '<div class="log-date-badge">'+d+'</div>'+
+        '<div style="display:flex;gap:6px;">'+
+          '<button class="log-edit-btn" data-date="'+d+'" style="font-size:11px;padding:4px 10px;border:1px solid #D4537E;color:#D4537E;background:#fff;border-radius:6px;cursor:pointer;font-weight:600;">編集</button>'+
+          '<button class="log-del-btn" data-date="'+d+'" style="font-size:11px;padding:4px 10px;border:1px solid #ccc;color:#888;background:#fff;border-radius:6px;cursor:pointer;">削除</button>'+
+        '</div>'+
+      '</div>'+
       '<div class="log-stats">'+stats+'</div>'+
-      (l.training?'<div class="log-training">'+l.training+'</div>':'')+
+      (l.breakfast?'<div class="log-training" style="margin-top:3px;">朝: '+l.breakfast+'</div>':'')+
+      (l.lunch?'<div class="log-training">昼: '+l.lunch+'</div>':'')+
+      (l.dinner?'<div class="log-training">夕: '+l.dinner+'</div>':'')+
+      (l.training?'<div class="log-training">運動: '+l.training+'</div>':'')+
       '</div>';
   }).join('');
+
+  // イベント委譲でボタンのクリックを処理
+  el.onclick = function(e) {
+    var editBtn = e.target.closest('.log-edit-btn');
+    var delBtn = e.target.closest('.log-del-btn');
+    if (editBtn) editLog(editBtn.getAttribute('data-date'));
+    if (delBtn) deleteLog(delBtn.getAttribute('data-date'));
+  };
 }
 </script>
 </body>
