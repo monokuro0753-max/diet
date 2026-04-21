@@ -106,6 +106,8 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 /* Chart */
 .chart-card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); }
 .chart-title { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; }
+.chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.chart-scroll canvas { min-width: 600px; }
 
 /* Log */
 .log-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -239,15 +241,15 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
     <div class="metric-grid" id="metrics"></div>
     <div class="chart-card">
       <div class="chart-title">体重推移 (kg)</div>
-      <canvas id="chart-weight" height="160"></canvas>
+      <div class="chart-scroll"><canvas id="chart-weight" height="160"></canvas></div>
     </div>
     <div class="chart-card">
       <div class="chart-title">カロリー収支 (kcal)</div>
-      <canvas id="chart-cal" height="160"></canvas>
+      <div class="chart-scroll"><canvas id="chart-cal" height="160"></canvas></div>
     </div>
     <div class="chart-card">
       <div class="chart-title">歩数推移</div>
-      <canvas id="chart-steps" height="140"></canvas>
+      <div class="chart-scroll"><canvas id="chart-steps" height="140"></canvas></div>
     </div>
   </div>
 
@@ -329,6 +331,30 @@ function today() {
   return d.getFullYear() + '-' + m + '-' + day;
 }
 document.getElementById('f-date').value = today();
+
+document.getElementById('f-date').addEventListener('change', function() {
+  var dateVal = formatDateForSheet(this.value);
+  var existing = logs.find(function(l){ return l.date === dateVal; });
+  if (existing) {
+    document.getElementById('f-weight').value = existing.weight || '';
+    document.getElementById('f-steps').value = existing.steps || '';
+    document.getElementById('f-burned').value = existing.burned || '';
+    document.getElementById('f-intake').value = existing.intake || '';
+    document.getElementById('f-breakfast').value = existing.breakfast || '';
+    document.getElementById('f-cal-breakfast').value = existing.calBreakfast || '';
+    document.getElementById('f-lunch').value = existing.lunch || '';
+    document.getElementById('f-cal-lunch').value = existing.calLunch || '';
+    document.getElementById('f-dinner').value = existing.dinner || '';
+    document.getElementById('f-cal-dinner').value = existing.calDinner || '';
+    document.getElementById('f-training').value = existing.training || '';
+    calcTotal();
+    showToast('過去のデータを読み込みました', 'ok');
+  } else {
+    ['f-weight','f-steps','f-burned','f-intake','f-breakfast','f-lunch','f-dinner','f-training','f-cal-breakfast','f-cal-lunch','f-cal-dinner']
+      .forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('cal-sum').textContent = '—';
+  }
+});
 
 function formatDateForSheet(val) {
   if (!val) return '';
@@ -421,8 +447,11 @@ function saveGasUrl() {
 }
 
 function renderGraphs() {
-  var recent = logs.slice(-20);
-  var labels = recent.map(function(l){ return l.date; });
+  var recent = logs.slice(-60);
+  var labels = recent.map(function(l){ 
+    var p = l.date.split('/');
+    return p[1]+'/'+p[2];
+  });
   var metrics = document.getElementById('metrics');
   if (logs.length) {
     var last = logs[logs.length-1];
