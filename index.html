@@ -112,9 +112,10 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 .metric-lbl { font-size: 11px; color: #888; margin-top: 4px; font-weight: 500; letter-spacing: 0.03em; }
 
 /* Chart */
-.chart-card { background: #F8F8F6; border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid rgba(0,0,0,0.08); }
-@media (prefers-color-scheme: dark) { .chart-card { background: #222220; border-color: rgba(255,255,255,0.06); } }
-.chart-title { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; }
+.chart-card { background: #FFFFFF; border-radius: var(--radius); padding: 16px 14px; margin-bottom: 12px; border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+@media (prefers-color-scheme: dark) { .chart-card { background: #1E1E1C; border-color: rgba(255,255,255,0.08); } }
+.chart-title { font-size: 13px; font-weight: 600; color: #333333; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 14px; }
+@media (prefers-color-scheme: dark) { .chart-title { color: #CCCCCC; } }
 .chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .chart-scroll canvas { min-width: 600px; }
 
@@ -146,6 +147,14 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 
 /* Note */
 .note { font-size: 11px; color: var(--muted); line-height: 1.7; margin-top: 6px; }
+.summary-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+.summary-row:last-child { border-bottom: none; }
+.summary-lbl { color: #888; font-size: 12px; }
+.summary-val { font-weight: 500; color: var(--text); }
+.diff-pos { color: #1D9E75; font-weight: 600; }
+.diff-neg { color: #D4537E; font-weight: 600; }
+.prog-wrap { background: rgba(0,0,0,0.07); border-radius: 4px; height: 5px; margin-top: 4px; overflow: hidden; width: 100%; }
+.prog-bar { height: 5px; border-radius: 4px; }
 .goal-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 0.5px solid var(--border); gap: 8px; }
 .goal-row:last-child { border-bottom: none; }
 .goal-lbl { font-size: 12px; color: var(--muted); flex-shrink: 0; width: 80px; }
@@ -268,12 +277,16 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
   <!-- グラフ -->
   <div id="page-graph" class="page">
     <div class="metric-grid" id="metrics"></div>
+    <div class="card" id="today-summary" style="display:none;padding:12px 16px;margin-bottom:12px;">
+      <div class="card-label">本日の進捗</div>
+      <div id="today-summary-content"></div>
+    </div>
     <div class="chart-card">
       <div class="chart-title">体重推移 (kg)</div>
       <div class="chart-scroll"><canvas id="chart-weight" height="160"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">カロリー収支 (kcal)</div>
+      <div class="chart-title">カロリー収支（消費−摂取）</div>
       <div class="chart-scroll"><canvas id="chart-cal" height="160"></canvas></div>
     </div>
     <div class="chart-card">
@@ -566,211 +579,196 @@ function renderGraphs() {
     return p[1]+'/'+p[2];
   });
 
-  // メトリクス
-  var metrics = document.getElementById('metrics');
-  if (logs.length) {
-    var last = logs[logs.length-1];
+  // メトリクスカード
+  var metricsEl = document.getElementById('metrics');
+  var last = logs.length ? logs[logs.length-1] : null;
+  var prevLog = logs.length >= 2 ? logs[logs.length-2] : null;
+  if (last) {
     var wFirst = logs.find(function(l){return l.weight;});
-    var diff = (last.weight && wFirst && wFirst.weight) ? (last.weight - wFirst.weight).toFixed(1) : null;
-    var isDown = diff !== null && parseFloat(diff) < 0;
-    var lastIntake = last.intake || 0;
-    var lastBurned = last.burned || 0;
-    var balance = lastBurned > 0 ? lastBurned - lastIntake : null;
-    metrics.innerHTML =
-      '<div class="metric-card"><div class="metric-val">'+(last.weight ? Math.round(last.weight*10)/10 : '—')+'<span style="font-size:13px;font-weight:400"> kg</span></div><div class="metric-lbl">最新体重</div></div>'+
-      '<div class="metric-card"><div class="metric-val '+(isDown?'down':'up')+'">'+(diff!==null?(isDown?'':'+') + diff:'—')+'<span style="font-size:13px;font-weight:400"> kg</span></div><div class="metric-lbl">開始からの変化</div></div>'+
-      '<div class="metric-card"><div class="metric-val" style="color:var(--blue)">'+(balance!==null?Math.round(balance).toLocaleString():'—')+'<span style="font-size:11px;font-weight:400"> kcal</span></div><div class="metric-lbl">消費余力</div></div>'+
-      '<div class="metric-card"><div class="metric-val" style="color:var(--green)">'+(last.steps?Math.round(last.steps).toLocaleString():'—')+'<span style="font-size:11px;font-weight:400"> 歩</span></div><div class="metric-lbl">最新歩数</div></div>';
+    var totalDiff = (last.weight && wFirst && wFirst.weight) ? (last.weight - wFirst.weight).toFixed(1) : null;
+    var isDown = totalDiff !== null && parseFloat(totalDiff) < 0;
+    var dayDiff = (last.weight && prevLog && prevLog.weight) ? (last.weight - prevLog.weight).toFixed(1) : null;
+    var isDayDown = dayDiff !== null && parseFloat(dayDiff) < 0;
+    var balance = (last.burned && last.intake) ? last.burned - last.intake : null;
+    metricsEl.innerHTML =
+      '<div class="metric-card"><div class="metric-val">'+(last.weight ? Math.round(last.weight*10)/10 : '—')+'<span style="font-size:12px;font-weight:400"> kg</span></div><div class="metric-lbl">最新体重</div></div>'+
+      '<div class="metric-card"><div class="metric-val '+(isDown?'down':'up')+'">'+(totalDiff!==null?(isDown?'':'+') + totalDiff:'—')+'<span style="font-size:12px;font-weight:400"> kg</span></div><div class="metric-lbl">開始からの変化</div></div>'+
+      '<div class="metric-card"><div class="metric-val '+(isDayDown?'down':'up')+'">'+(dayDiff!==null?(isDayDown?'':'+') + dayDiff:'—')+'<span style="font-size:12px;font-weight:400"> kg</span></div><div class="metric-lbl">前日比（体重）</div></div>'+
+      '<div class="metric-card"><div class="metric-val" style="color:'+(balance!==null&&balance>=0?'#1D9E75':'#D4537E')+'">'+(balance!==null?Math.round(balance).toLocaleString():'—')+'<span style="font-size:10px;font-weight:400"> kcal</span></div><div class="metric-lbl">消費余力</div></div>';
   }
 
-  var W = Math.max(recent.length * 36, 300);
+  // 本日の進捗サマリー
+  var summaryCard = document.getElementById('today-summary');
+  var summaryContent = document.getElementById('today-summary-content');
+  var now = new Date();
+  var todayLog = logs.find(function(l){
+    var p = l.date.split('/');
+    return parseInt(p[1])===now.getMonth()+1 && parseInt(p[2])===now.getDate();
+  });
+  if (todayLog && summaryCard) {
+    summaryCard.style.display = 'block';
+    var sh = '';
+    var calBal = (todayLog.burned && todayLog.intake) ? Math.round(todayLog.burned - todayLog.intake) : null;
+    if (calBal !== null) {
+      sh += '<div class="summary-row"><span class="summary-lbl">消費余力</span><span class="'+(calBal>=0?'diff-pos':'diff-neg')+'">'+(calBal>=0?'+':'')+calBal.toLocaleString()+' kcal</span></div>';
+    }
+    if (todayLog.steps) {
+      var pct = Math.min(Math.round(todayLog.steps/8000*100),100);
+      sh += '<div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:4px;">';
+      sh += '<div style="display:flex;justify-content:space-between;width:100%;"><span class="summary-lbl">歩数</span><span class="summary-val">'+Math.round(todayLog.steps).toLocaleString()+' 歩 / 8,000歩目標</span></div>';
+      sh += '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%;background:'+(todayLog.steps>=8000?'#378ADD':'#BA7517')+';"></div></div>';
+      sh += '</div>';
+    }
+    if (todayLog.training) {
+      sh += '<div class="summary-row"><span class="summary-lbl">トレーニング</span><span class="summary-val" style="font-size:12px;text-align:right;max-width:65%;">'+todayLog.training+'</span></div>';
+    }
+    summaryContent.innerHTML = sh || '<div style="font-size:12px;color:#888;padding:4px 0;">今日の実績を入力してください</div>';
+  } else if (summaryCard) {
+    summaryCard.style.display = 'none';
+  }
 
-  function mkChart(id, type, data, opts, w) {
+  // チャート描画設定
+  var dpr = window.devicePixelRatio || 1;
+  var logicalW = Math.max(recent.length * 40, 320);
+  var TICK_COLOR = '#444444';
+  var GRID_COLOR = 'rgba(0,0,0,0.07)';
+  var LEGEND_COLOR = '#333333';
+
+  function mkChart(id, type, datasets, yCallback, legendItems, w) {
     if (charts[id]) charts[id].destroy();
     var cvs = document.getElementById(id);
-    var cw = w || W;
-    cvs.width = cw;
-    cvs.style.width = cw + 'px';
+    var lw = w || logicalW;
+    cvs.style.width  = lw + 'px';
     cvs.style.height = '200px';
-    cvs.height = 200;
+    cvs.width  = Math.round(lw * dpr);
+    cvs.height = Math.round(200 * dpr);
     var ctx = cvs.getContext('2d');
+    ctx.scale(dpr, dpr);
 
-    // White background plugin
     var bgPlugin = {
-      id: 'bg',
+      id: 'whiteBg',
       beforeDraw: function(chart) {
         var c = chart.ctx;
         c.save();
         c.fillStyle = '#FFFFFF';
-        c.fillRect(0, 0, chart.width, chart.height);
+        c.fillRect(0, 0, lw, 200);
         c.restore();
       }
     };
 
-    var baseOpts = {
-      responsive: false,
-      animation: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#FFFFFF',
-          titleColor: '#1A1A1A',
-          bodyColor: '#444',
-          borderColor: 'rgba(0,0,0,0.12)',
-          borderWidth: 1,
-          padding: 10,
-          cornerRadius: 8,
-          callbacks: {
-            label: function(ctx){ return ' ' + Math.round(ctx.parsed.y).toLocaleString(); }
+    charts[id] = new Chart(ctx, {
+      type: type,
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: false,
+        animation: false,
+        devicePixelRatio: 1,
+        layout: { padding: { left: 2, right: 10, top: 8, bottom: 4 } },
+        plugins: {
+          legend: {
+            display: !!(legendItems && legendItems.length),
+            labels: {
+              font: { size: 12, family: 'sans-serif', weight: '500' },
+              color: LEGEND_COLOR,
+              boxWidth: 14, boxHeight: 14, padding: 12,
+              generateLabels: legendItems ? function(){ return legendItems.map(function(l){ return Object.assign({ fontColor: LEGEND_COLOR }, l); }); } : undefined
+            }
+          },
+          tooltip: {
+            backgroundColor: '#fff',
+            titleColor: '#111',
+            bodyColor: '#333',
+            borderColor: 'rgba(0,0,0,0.12)',
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 8
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              font: { size: 12, family: 'sans-serif', weight: '400' },
+              color: TICK_COLOR,
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 8
+            },
+            grid: { display: false },
+            border: { display: false }
+          },
+          y: {
+            ticks: {
+              font: { size: 12, family: 'sans-serif', weight: '400' },
+              color: TICK_COLOR,
+              padding: 8,
+              maxTicksLimit: 5,
+              callback: yCallback || function(v){ return Math.round(v).toLocaleString(); }
+            },
+            grid: { color: GRID_COLOR, lineWidth: 1 },
+            border: { display: false }
           }
         }
       },
-      scales: {
-        x: {
-          ticks: {
-            font: { size: 11, family: "'DM Mono', monospace" },
-            color: '#666666',
-            maxRotation: 0,
-            autoSkip: true,
-            maxTicksLimit: 8
-          },
-          grid: { display: false },
-          border: { display: false }
-        },
-        y: {
-          ticks: {
-            font: { size: 11, family: "'DM Sans', sans-serif" },
-            color: '#666666',
-            padding: 8,
-            maxTicksLimit: 5,
-            callback: function(v){ return Math.round(v).toLocaleString(); }
-          },
-          grid: { color: 'rgba(0,0,0,0.06)', lineWidth: 1 },
-          border: { display: false }
-        }
-      }
-    };
-
-    if (opts) {
-      if (opts.plugins) {
-        Object.keys(opts.plugins).forEach(function(k){
-          baseOpts.plugins[k] = Object.assign(baseOpts.plugins[k]||{}, opts.plugins[k]);
-        });
-      }
-      if (opts.scales && opts.scales.y) {
-        Object.assign(baseOpts.scales.y, opts.scales.y);
-      }
-    }
-
-    charts[id] = new Chart(ctx, {
-      type: type,
-      data: data,
-      options: baseOpts,
       plugins: [bgPlugin]
     });
   }
 
   // 体重グラフ（実績＋目標）
-  mkChart('chart-weight', 'line', {
-    labels: labels,
-    datasets: [
-      {
-        label: '実績',
-        data: recent.map(function(l){ return l.weight ? Math.round(l.weight*10)/10 : null; }),
-        borderColor: '#D4537E',
-        backgroundColor: 'rgba(212,83,126,0.08)',
-        tension: 0.4, pointRadius: 4,
-        pointBackgroundColor: '#fff',
-        pointBorderColor: '#D4537E',
-        pointBorderWidth: 2,
-        fill: true, borderWidth: 2.5, spanGaps: true
-      },
-      {
-        label: '目標',
-        data: recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight*10)/10 : null; }),
-        borderColor: '#378ADD',
-        backgroundColor: 'transparent',
-        tension: 0.4, pointRadius: 3,
-        pointBackgroundColor: '#378ADD',
-        borderWidth: 1.5,
-        borderDash: [5,4],
-        spanGaps: true
-      }
-    ]
-  }, {
-    plugins: {
-      legend: {
-        display: true,
-        labels: { font: { size: 12 }, boxWidth: 14, color: '#444', padding: 12 }
-      }
+  mkChart('chart-weight', 'line', [
+    {
+      label: '実績',
+      data: recent.map(function(l){ return l.weight ? Math.round(l.weight*10)/10 : null; }),
+      borderColor: '#D4537E', backgroundColor: 'rgba(212,83,126,0.08)',
+      tension: 0.4, pointRadius: 4, pointBackgroundColor: '#fff',
+      pointBorderColor: '#D4537E', pointBorderWidth: 2,
+      fill: true, borderWidth: 2, spanGaps: true
     },
-    scales: { y: { ticks: { callback: function(v){ return v+'kg'; } } } }
-  });
+    {
+      label: '目標',
+      data: recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight*10)/10 : null; }),
+      borderColor: '#378ADD', backgroundColor: 'transparent',
+      tension: 0.4, pointRadius: 3, pointBackgroundColor: '#378ADD',
+      borderWidth: 1.5, borderDash: [5,4], spanGaps: true
+    }
+  ],
+  function(v){ return v + 'kg'; },
+  [
+    { text: '実績体重', fillStyle: '#D4537E', strokeStyle: 'transparent', lineWidth: 0 },
+    { text: '目標体重', fillStyle: '#378ADD', strokeStyle: 'transparent', lineWidth: 0 }
+  ]);
 
   // カロリー収支グラフ
   var calBalance = recent.map(function(l){
     if (l.burned && l.intake) return Math.round(l.burned - l.intake);
     return null;
   });
-  mkChart('chart-cal', 'bar', {
-    labels: labels,
-    datasets: [{
-      label: '消費余力',
-      data: calBalance,
-      backgroundColor: calBalance.map(function(v){
-        if (v === null) return 'rgba(200,200,200,0.3)';
-        return v >= 0 ? '#1D9E75' : '#D4537E';
-      }),
-      borderRadius: 5,
-      borderSkipped: false
-    }]
-  }, {
-    plugins: {
-      legend: {
-        display: true,
-        labels: {
-          font: { size: 12 }, color: '#444', padding: 12,
-          generateLabels: function(){
-            return [
-              { text: '黒字（余力あり）', fillStyle: '#1D9E75', strokeStyle: 'transparent', lineWidth: 0 },
-              { text: '赤字（超過）', fillStyle: '#D4537E', strokeStyle: 'transparent', lineWidth: 0 }
-            ];
-          }
-        }
-      }
-    },
-    scales: { y: { ticks: { callback: function(v){ return Math.round(v).toLocaleString()+'kcal'; } } } }
-  }, W);
+  mkChart('chart-cal', 'bar', [{
+    data: calBalance,
+    backgroundColor: calBalance.map(function(v){
+      return (v===null) ? 'rgba(200,200,200,0.3)' : (v>=0 ? '#1D9E75' : '#D4537E');
+    }),
+    borderRadius: 5, borderSkipped: false
+  }],
+  function(v){ return Math.round(v).toLocaleString()+'kcal'; },
+  [
+    { text: '黒字（余力あり）', fillStyle: '#1D9E75', strokeStyle: 'transparent', lineWidth: 0 },
+    { text: '赤字（超過）', fillStyle: '#D4537E', strokeStyle: 'transparent', lineWidth: 0 }
+  ], logicalW);
 
   // 歩数グラフ
-  mkChart('chart-steps', 'bar', {
-    labels: labels,
-    datasets: [{
-      data: recent.map(function(l){ return l.steps ? Math.round(l.steps) : null; }),
-      backgroundColor: recent.map(function(l){
-        if (!l.steps) return 'rgba(200,200,200,0.2)';
-        return l.steps >= 8000 ? '#378ADD' : '#BA7517';
-      }),
-      borderRadius: 5,
-      borderSkipped: false
-    }]
-  }, {
-    plugins: {
-      legend: {
-        display: true,
-        labels: {
-          font: { size: 12 }, color: '#444', padding: 12,
-          generateLabels: function(){
-            return [
-              { text: '8,000歩以上', fillStyle: '#378ADD', strokeStyle: 'transparent', lineWidth: 0 },
-              { text: '8,000歩未満', fillStyle: '#BA7517', strokeStyle: 'transparent', lineWidth: 0 }
-            ];
-          }
-        }
-      }
-    },
-    scales: { y: { ticks: { callback: function(v){ return Math.round(v).toLocaleString()+'歩'; } } } }
-  }, W);
+  mkChart('chart-steps', 'bar', [{
+    data: recent.map(function(l){ return l.steps ? Math.round(l.steps) : null; }),
+    backgroundColor: recent.map(function(l){
+      if (!l.steps) return 'rgba(200,200,200,0.2)';
+      return l.steps >= 8000 ? '#378ADD' : '#BA7517';
+    }),
+    borderRadius: 5, borderSkipped: false
+  }],
+  function(v){ return Math.round(v).toLocaleString()+'歩'; },
+  [
+    { text: '8,000歩以上', fillStyle: '#378ADD', strokeStyle: 'transparent', lineWidth: 0 },
+    { text: '8,000歩未満', fillStyle: '#BA7517', strokeStyle: 'transparent', lineWidth: 0 }
+  ], logicalW);
 }
 
 function renderLog() {
