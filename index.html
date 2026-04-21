@@ -139,6 +139,18 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 
 /* Note */
 .note { font-size: 11px; color: var(--muted); line-height: 1.7; margin-top: 6px; }
+.goal-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 0.5px solid var(--border); gap: 8px; }
+.goal-row:last-child { border-bottom: none; }
+.goal-lbl { font-size: 12px; color: var(--muted); flex-shrink: 0; width: 80px; }
+.goal-val { font-size: 13px; color: var(--text); flex: 1; }
+.progress-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+.progress-row:last-child { border-bottom: none; }
+.progress-lbl { font-size: 12px; color: var(--muted); width: 80px; flex-shrink: 0; }
+.progress-vals { flex: 1; }
+.progress-bar-wrap { background: var(--border); border-radius: 4px; height: 6px; margin-top: 4px; overflow: hidden; }
+.progress-bar { height: 6px; border-radius: 4px; transition: width 0.3s; }
+.diff-good { color: #1D9E75; font-weight: 500; }
+.diff-bad { color: #D4537E; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -233,6 +245,14 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
       <div class="field">
         <textarea id="f-training" ></textarea>
       </div>
+    </div>
+
+    <div class="card" id="goal-card" style="display:none;">
+      <div class="card-label" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>今日の目標</span>
+        <span id="goal-date-label" style="font-size:11px;color:var(--muted);font-weight:400;"></span>
+      </div>
+      <div id="goal-content"></div>
     </div>
 
     <button class="save-btn" onclick="saveLog()">保存する</button>
@@ -358,11 +378,15 @@ function loadByDate(dateVal) {
 }
 
 document.getElementById('f-date').addEventListener('change', function() {
-  loadByDate(formatDateForSheet(this.value));
+  var dv = formatDateForSheet(this.value);
+  loadByDate(dv);
+  fetchGoal(dv);
 });
 
 // 初期表示：今日のデータがあれば読み込む
-loadByDate(formatDateForSheet(document.getElementById('f-date').value));
+var _initDate = formatDateForSheet(document.getElementById('f-date').value);
+loadByDate(_initDate);
+fetchGoal(_initDate);
 
 function formatDateForSheet(val) {
   if (!val) return '';
@@ -410,8 +434,10 @@ function applyTotal() {
 }
 
 function saveLog() {
+  var dateVal = formatDateForSheet(document.getElementById('f-date').value);
+  var existingGoal = logs.find(function(l){ return l.date === dateVal; });
   var row = {
-    date: formatDateForSheet(document.getElementById('f-date').value),
+    date: dateVal,
     weight: parseFloat(document.getElementById('f-weight').value)||null,
     steps: parseInt(document.getElementById('f-steps').value)||null,
     burned: parseInt(document.getElementById('f-burned').value)||null,
@@ -425,7 +451,7 @@ function saveLog() {
     training: document.getElementById('f-training').value.trim()
   };
   if (!row.date) { showToast('日付を入力してください', 'err'); return; }
-  var idx = logs.findIndex(function(l){ return l.date===row.date; });
+  var idx = logs.findIndex(function(l){ return l.date===dateVal; });
   if (idx>=0) logs[idx]=row; else logs.push(row);
   logs.sort(function(a,b){ return a.date<b.date?-1:1; });
   localStorage.setItem('dietlogs_v2', JSON.stringify(logs));
@@ -452,6 +478,78 @@ function saveGasUrl() {
   gasUrl = document.getElementById('gas-url').value.trim();
   localStorage.setItem('gasUrl', gasUrl);
   document.getElementById('gas-status').textContent = gasUrl ? 'URL設定済み ✓' : '';
+}
+
+async function fetchGoal(dateVal) {
+  if (!gasUrl) return;
+  var card = document.getElementById('goal-card');
+  var content = document.getElementById('goal-content');
+  document.getElementById('goal-date-label').textContent = dateVal;
+  card.style.display = 'block';
+  content.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">読み込み中...</div>';
+
+  try {
+    var url = gasUrl + '?date=' + encodeURIComponent(dateVal);
+    var res = await fetch(url);
+    var g = await res.json();
+    if (!g || Object.keys(g).length === 0) {
+      content.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">この日の目標データがありません</div>';
+      return;
+    }
+
+    // 実績取得
+    var existing = logs.find(function(l){ return l.date === dateVal; }) || {};
+    var actualIntake = existing.intake || null;
+    var actualBurned = existing.burned || null;
+
+    // 摂取カロリー進捗
+    var intakeDiff = (actualIntake && g.targetIntake) ? actualIntake - g.targetIntake : null;
+    var intakePct = (actualIntake && g.targetIntake) ? Math.min(Math.round(actualIntake / g.targetIntake * 100), 150) : 0;
+    var intakeColor = intakeDiff !== null ? (intakeDiff <= 0 ? '#1D9E75' : '#D4537E') : '#378ADD';
+
+    // 消費カロリー進捗
+    var burnedDiff = (actualBurned && g.targetBurned) ? actualBurned - g.targetBurned : null;
+    var burnedPct = (actualBurned && g.targetBurned) ? Math.min(Math.round(actualBurned / g.targetBurned * 100), 150) : 0;
+    var burnedColor = burnedDiff !== null ? (burnedDiff >= 0 ? '#1D9E75' : '#D4537E') : '#378ADD';
+
+    var html = '';
+
+    // 目標食事
+    html += '<div style="font-size:11px;font-weight:500;color:var(--muted);margin:4px 0 6px;letter-spacing:0.05em;text-transform:uppercase;">目標食事</div>';
+    if (g.breakfast) html += '<div class="goal-row"><span class="goal-lbl">朝食</span><span class="goal-val">'+g.breakfast+'</span></div>';
+    if (g.lunch) html += '<div class="goal-row"><span class="goal-lbl">昼食</span><span class="goal-val">'+g.lunch+'</span></div>';
+    if (g.dinner) html += '<div class="goal-row"><span class="goal-lbl">夕食</span><span class="goal-val">'+g.dinner+'</span></div>';
+    if (g.training) html += '<div class="goal-row"><span class="goal-lbl">運動</span><span class="goal-val">'+g.training+'</span></div>';
+
+    // 進捗
+    html += '<div style="font-size:11px;font-weight:500;color:var(--muted);margin:12px 0 6px;letter-spacing:0.05em;text-transform:uppercase;">カロリー進捗</div>';
+
+    // 摂取
+    html += '<div class="progress-row">';
+    html += '<span class="progress-lbl">摂取</span>';
+    html += '<div class="progress-vals">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:12px;">';
+    html += '<span>'+(actualIntake ? Math.round(actualIntake).toLocaleString() : '未入力')+' / '+(g.targetIntake ? Math.round(g.targetIntake).toLocaleString() : '—')+' kcal</span>';
+    if (intakeDiff !== null) html += '<span class="'+(intakeDiff<=0?'diff-good':'diff-bad')+'">'+(intakeDiff<=0?'':'+') + Math.round(intakeDiff).toLocaleString()+'</span>';
+    html += '</div>';
+    html += '<div class="progress-bar-wrap"><div class="progress-bar" style="width:'+intakePct+'%;background:'+intakeColor+';"></div></div>';
+    html += '</div></div>';
+
+    // 消費
+    html += '<div class="progress-row">';
+    html += '<span class="progress-lbl">消費</span>';
+    html += '<div class="progress-vals">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:12px;">';
+    html += '<span>'+(actualBurned ? Math.round(actualBurned).toLocaleString() : '未入力')+' / '+(g.targetBurned ? Math.round(g.targetBurned).toLocaleString() : '—')+' kcal</span>';
+    if (burnedDiff !== null) html += '<span class="'+(burnedDiff>=0?'diff-good':'diff-bad')+'">'+(burnedDiff>=0?'+':'') + Math.round(burnedDiff).toLocaleString()+'</span>';
+    html += '</div>';
+    html += '<div class="progress-bar-wrap"><div class="progress-bar" style="width:'+burnedPct+'%;background:'+burnedColor+';"></div></div>';
+    html += '</div></div>';
+
+    content.innerHTML = html;
+  } catch(err) {
+    content.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">目標データの取得に失敗しました</div>';
+  }
 }
 
 function renderGraphs() {
@@ -538,23 +636,44 @@ function renderGraphs() {
     charts[id] = new Chart(ctx, { type: type, data: data, options: baseOpts });
   }
 
-  // 体重グラフ
+  // 体重グラフ（実績＋目標）
   mkChart('chart-weight', 'line', {
     labels: labels,
-    datasets: [{
-      data: recent.map(function(l){ return l.weight ? Math.round(l.weight * 10) / 10 : null; }),
-      borderColor: '#D4537E',
-      backgroundColor: 'rgba(212,83,126,0.08)',
-      tension: 0.4,
-      pointRadius: 4,
-      pointBackgroundColor: '#fff',
-      pointBorderColor: '#D4537E',
-      pointBorderWidth: 2,
-      fill: true,
-      borderWidth: 2.5,
-      spanGaps: true
-    }]
+    datasets: [
+      {
+        label: '実績体重',
+        data: recent.map(function(l){ return l.weight ? Math.round(l.weight * 10) / 10 : null; }),
+        borderColor: '#D4537E',
+        backgroundColor: 'rgba(212,83,126,0.08)',
+        tension: 0.4,
+        pointRadius: 4,
+        pointBackgroundColor: '#fff',
+        pointBorderColor: '#D4537E',
+        pointBorderWidth: 2,
+        fill: true,
+        borderWidth: 2.5,
+        spanGaps: true
+      },
+      {
+        label: '目標体重',
+        data: recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight * 10) / 10 : null; }),
+        borderColor: '#378ADD',
+        backgroundColor: 'transparent',
+        tension: 0.4,
+        pointRadius: 3,
+        pointBackgroundColor: '#378ADD',
+        borderWidth: 1.5,
+        borderDash: [4, 4],
+        spanGaps: true
+      }
+    ]
   }, {
+    plugins: {
+      legend: {
+        display: true,
+        labels: { font: { size: 11 }, boxWidth: 12 }
+      }
+    },
     scales: { y: { ticks: { callback: function(v){ return v+'kg'; } } } }
   });
 
