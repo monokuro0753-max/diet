@@ -453,8 +453,10 @@ function applyTotal() {
 function saveLog() {
   var dateVal = formatDateForSheet(document.getElementById('f-date').value);
   var existingGoal = logs.find(function(l){ return l.date === dateVal; });
+  var existingEntry = logs.find(function(l){ return l.date === dateVal; });
   var row = {
     date: dateVal,
+    targetWeight: existingEntry ? existingEntry.targetWeight : null,
     weight: parseFloat(document.getElementById('f-weight').value)||null,
     steps: parseInt(document.getElementById('f-steps').value)||null,
     burned: parseInt(document.getElementById('f-burned').value)||null,
@@ -514,6 +516,19 @@ async function fetchGoal(dateVal) {
     if (!g || Object.keys(g).length === 0) {
       gc.innerHTML = '<div style="font-size:12px;color:#888;padding:6px 0;">この日の目標データがありません</div>';
       return;
+    }
+
+    // 目標体重をログに保存してグラフに反映
+    if (g.targetWeight) {
+      var tw = parseFloat(g.targetWeight);
+      var li = logs.findIndex(function(l){ return l.date === dateVal; });
+      if (li >= 0) {
+        logs[li].targetWeight = tw;
+      } else {
+        logs.push({ date: dateVal, targetWeight: tw });
+        logs.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+      }
+      localStorage.setItem('dietlogs_v2', JSON.stringify(logs));
     }
 
     // 実績取得
