@@ -349,20 +349,7 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
 var logs = [];
-try {
-  var raw = JSON.parse(localStorage.getItem('dietlogs_v2') || '[]');
-  // 日付を正規化して重複除去
-  var seen = {};
-  raw.forEach(function(l) {
-    var p = l.date.split('/');
-    var norm;
-    if (p.length === 3) norm = parseInt(p[0])+'/'+parseInt(p[1])+'/'+parseInt(p[2]);
-    else if (p.length === 2) norm = '2026/'+parseInt(p[0])+'/'+parseInt(p[1]);
-    else norm = l.date;
-    if (!seen[norm]) { seen[norm] = true; logs.push(Object.assign({}, l, {date: norm})); }
-  });
-  logs.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
-} catch(e){}
+try { logs = JSON.parse(localStorage.getItem('dietlogs_v2') || '[]'); } catch(e){}
 var gasUrl = localStorage.getItem('gasUrl') || '';
 var charts = {};
 var estimatedData = null;
@@ -600,6 +587,13 @@ async function fetchGoal(dateVal) {
 }
 
 function renderGraphs() {
+  // 日付を正規化してソート（2026/4/20と4/20が混在する場合の対応）
+  function normalizeDate(d) {
+    var p = d.split('/');
+    if (p.length === 3) return p[0]+'/'+parseInt(p[1])+'/'+parseInt(p[2]);
+    if (p.length === 2) return '2026/'+parseInt(p[0])+'/'+parseInt(p[1]);
+    return d;
+  }
   function toLabel(d) {
     var p = d.split('/');
     if (p.length === 3) return parseInt(p[1])+'/'+parseInt(p[2]);
@@ -607,7 +601,16 @@ function renderGraphs() {
     return d;
   }
 
-  var recent = logs.slice(-60);
+  // 重複日付を除去してソート
+  var seen = {};
+  var dedupLogs = [];
+  logs.forEach(function(l) {
+    var norm = normalizeDate(l.date);
+    if (!seen[norm]) { seen[norm] = true; dedupLogs.push(Object.assign({}, l, {date: norm})); }
+  });
+  dedupLogs.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+
+  var recent = dedupLogs.slice(-60);
   var labels = recent.map(function(l){ return toLabel(l.date); });
 
   // メトリクスカード
@@ -638,9 +641,10 @@ function renderGraphs() {
   var summaryCard = document.getElementById('today-summary');
   var summaryContent = document.getElementById('today-summary-content');
   var now = new Date();
-  var todayLog = logs.find(function(l){
+  var todayLog = dedupLogs.find(function(l){
     var p = l.date.split('/');
     if (p.length === 3) return parseInt(p[1])===now.getMonth()+1 && parseInt(p[2])===now.getDate();
+    if (p.length === 2) return parseInt(p[0])===now.getMonth()+1 && parseInt(p[1])===now.getDate();
     return false;
   });
   if (todayLog && summaryCard) {
