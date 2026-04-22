@@ -590,8 +590,8 @@ function renderGraphs() {
     var balance = (last.burned && last.intake) ? last.burned - last.intake : null;
     metricsEl.innerHTML =
       '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:#111;">'+(last.weight ? Math.round(last.weight*10)/10 : '—')+'<span style="font-size:11px;font-weight:400"> kg</span></div><div class="metric-lbl" style="color:#666;">最新体重</div></div>'+
-      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val '+(isDown?'down':'up')+'" style="'+(isDown?'color:#1D9E75':'color:#D4537E')+'">'+(totalDiff!==null?(isDown?'':'+') + totalDiff:'—')+'<span style="font-size:11px;font-weight:400;color:#666;"> kg</span></div><div class="metric-lbl" style="color:#666;">開始からの変化</div></div>'+
-      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val '+(isDayDown?'down':'up')+'" style="'+(isDayDown?'color:#1D9E75':'color:#D4537E')+'">'+(dayDiff!==null?(isDayDown?'':'+') + dayDiff:'—')+'<span style="font-size:11px;font-weight:400;color:#666;"> kg</span></div><div class="metric-lbl" style="color:#666;">前日比</div></div>'+
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:'+(isDown?'#1D9E75':'#D4537E')+'">'+(totalDiff!==null?(isDown?'':'+') + totalDiff:'—')+'<span style="font-size:11px;font-weight:400;color:#666;"> kg</span></div><div class="metric-lbl" style="color:#666;">開始からの変化</div></div>'+
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:'+(isDayDown?'#1D9E75':'#D4537E')+'">'+(dayDiff!==null?(isDayDown?'':'+') + dayDiff:'—')+'<span style="font-size:11px;font-weight:400;color:#666;"> kg</span></div><div class="metric-lbl" style="color:#666;">前日比</div></div>'+
       '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:'+(balance!==null&&balance>=0?'#1D9E75':'#D4537E')+'">'+(balance!==null?Math.round(balance).toLocaleString():'—')+'<span style="font-size:10px;font-weight:400;color:#666;"> kcal</span></div><div class="metric-lbl" style="color:#666;">消費余力</div></div>';
   } else {
     metricsEl.innerHTML =
@@ -613,247 +613,303 @@ function renderGraphs() {
     summaryCard.style.display = 'block';
     var sh = '';
     var calBal = (todayLog.burned && todayLog.intake) ? Math.round(todayLog.burned - todayLog.intake) : null;
-    if (calBal !== null) {
-      sh += '<div class="summary-row"><span class="summary-lbl">消費余力</span><span class="'+(calBal>=0?'diff-pos':'diff-neg')+'">'+(calBal>=0?'+':'')+calBal.toLocaleString()+' kcal</span></div>';
-    }
+    if (calBal !== null) sh += '<div class="summary-row"><span class="summary-lbl">消費余力</span><span class="'+(calBal>=0?'diff-pos':'diff-neg')+'">'+(calBal>=0?'+':'')+calBal.toLocaleString()+' kcal</span></div>';
     if (todayLog.steps) {
       var pct = Math.min(Math.round(todayLog.steps/8000*100),100);
-      sh += '<div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:4px;">';
-      sh += '<div style="display:flex;justify-content:space-between;width:100%;"><span class="summary-lbl">歩数</span><span class="summary-val">'+Math.round(todayLog.steps).toLocaleString()+' 歩 / 8,000歩目標</span></div>';
-      sh += '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%;background:'+(todayLog.steps>=8000?'#378ADD':'#BA7517')+';"></div></div>';
-      sh += '</div>';
+      sh += '<div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><div style="display:flex;justify-content:space-between;width:100%;"><span class="summary-lbl">歩数</span><span class="summary-val">'+Math.round(todayLog.steps).toLocaleString()+' 歩 / 8,000歩目標</span></div><div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%;background:'+(todayLog.steps>=8000?'#378ADD':'#BA7517')+';"></div></div></div>';
     }
-    if (todayLog.training) {
-      sh += '<div class="summary-row"><span class="summary-lbl">トレーニング</span><span class="summary-val" style="font-size:12px;text-align:right;max-width:65%;">'+todayLog.training+'</span></div>';
-    }
+    if (todayLog.training) sh += '<div class="summary-row"><span class="summary-lbl">トレーニング</span><span class="summary-val" style="font-size:12px;text-align:right;max-width:65%;">'+todayLog.training+'</span></div>';
     summaryContent.innerHTML = sh || '<div style="font-size:12px;color:#888;padding:4px 0;">今日の実績を入力してください</div>';
   } else if (summaryCard) {
     summaryCard.style.display = 'none';
   }
 
-  // Chart設定
-  // dprを使わず、Chart.jsのdevicePixelRatioに任せる
-  var dpr = window.devicePixelRatio || 1;
-  var colW = 44;
-  var logicalW = Math.max(recent.length * colW, 320);
-  var chartH = 240;
-  var TICK = '#333333';
-  var GRID = 'rgba(0,0,0,0.07)';
-  var LEG  = '#222222';
+  // グラフ描画 - SVGベースの自作グラフ（Chart.jsの代わり）
+  drawWeightChart(recent, labels);
+  drawCalChart(recent, labels);
+  drawStepsChart(recent, labels);
+}
 
-  function mkChart(id, type, datasets, yCb, legendItems, w) {
-    if (charts[id]) charts[id].destroy();
-    var cvs = document.getElementById(id);
-    var lw = w || logicalW;
+function makeChartSVG(id, data, labels, opts) {
+  var wrap = document.getElementById(id).parentNode;
+  var existSvg = document.getElementById(id + '-svg');
+  if (existSvg) existSvg.remove();
 
-    // リセット
-    cvs.removeAttribute('width');
-    cvs.removeAttribute('height');
-    cvs.style.width  = lw + 'px';
-    cvs.style.height = chartH + 'px';
+  var W = Math.max(labels.length * 44, 320);
+  var H = 200;
+  var pad = { top: 20, right: 16, bottom: 36, left: 58 };
+  var iW = W - pad.left - pad.right;
+  var iH = H - pad.top - pad.bottom;
 
-    var whiteBg = {
-      id: 'whiteBg',
-      beforeDraw: function(chart) {
-        var c = chart.ctx;
-        c.save();
-        c.fillStyle = '#FFFFFF';
-        c.fillRect(0, 0, chart.width, chart.height);
-        c.restore();
-      }
-    };
+  var allVals = data.map(function(d){ return d.value; }).filter(function(v){ return v !== null; });
+  if (opts.min !== undefined) allVals.push(opts.min);
+  if (opts.max !== undefined) allVals.push(opts.max);
+  var vMin = allVals.length ? Math.min.apply(null, allVals) : 0;
+  var vMax = allVals.length ? Math.max.apply(null, allVals) : 1;
+  var vRange = vMax - vMin || 1;
+  var pad2 = vRange * 0.15;
+  var yMin = vMin - pad2;
+  var yMax = vMax + pad2;
+  var yRange = yMax - yMin;
 
-    charts[id] = new Chart(cvs, {
-      type: type,
-      data: { labels: labels, datasets: datasets },
-      options: {
-        responsive: false,
-        animation: false,
-        // Chart.jsに正しいdprを渡す → フォントが正しくレンダリングされる
-        devicePixelRatio: dpr,
-        layout: { padding: { left: 4, right: 14, top: 6, bottom: 4 } },
-        plugins: {
-          legend: {
-            display: !!(legendItems && legendItems.length),
-            position: 'top',
-            align: 'start',
-            labels: {
-              // フォントサイズはCSS論理ピクセル単位で指定（Chart.jsがdpr補正）
-              font: { size: 13, family: 'Arial, sans-serif', weight: '500' },
-              color: LEG,
-              boxWidth: 14,
-              boxHeight: 14,
-              padding: 12,
-              generateLabels: legendItems
-                ? function(){ return legendItems.map(function(li){
-                    return {
-                      text: li.text,
-                      fillStyle: li.fillStyle,
-                      strokeStyle: 'transparent',
-                      lineWidth: 0,
-                      fontColor: LEG
-                    };
-                  }); }
-                : undefined
-            }
-          },
-          tooltip: {
-            backgroundColor: '#fff',
-            titleColor: '#111',
-            bodyColor: '#333',
-            borderColor: 'rgba(0,0,0,0.12)',
-            borderWidth: 1,
-            padding: 10,
-            cornerRadius: 8
-          }
-        },
-        scales: {
-          x: {
-            ticks: {
-              font: { size: 13, family: 'Arial, sans-serif', weight: '500' },
-              color: TICK,
-              maxRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: 7
-            },
-            grid: { display: false },
-            border: { display: false }
-          },
-          y: {
-            ticks: {
-              font: { size: 13, family: 'Arial, sans-serif', weight: '500' },
-              color: TICK,
-              padding: 8,
-              maxTicksLimit: 5,
-              callback: yCb || function(v){ return Math.round(v).toLocaleString(); }
-            },
-            grid: { color: GRID },
-            border: { display: false }
-          }
-        }
-      },
-      plugins: [whiteBg]
-    });
+  function xPos(i) { return pad.left + (i / Math.max(labels.length - 1, 1)) * iW; }
+  function yPos(v) { return pad.top + (1 - (v - yMin) / yRange) * iH; }
+
+  // Y軸目盛り
+  var tickCount = 4;
+  var tickStep = yRange / tickCount;
+  var ticks = [];
+  for (var t = 0; t <= tickCount; t++) {
+    ticks.push(yMin + t * tickStep);
   }
 
-  // 体重グラフ
-  // 体重グラフ（実績＋目標）
-  var weightVals = recent.map(function(l){ return l.weight; }).filter(Boolean);
-  var targetVals = recent.map(function(l){ return l.targetWeight; }).filter(Boolean);
-  var allVals = weightVals.concat(targetVals);
-  var wMin = allVals.length ? Math.min.apply(null, allVals) : 70;
-  var wMax = allVals.length ? Math.max.apply(null, allVals) : 90;
-  var wRange = wMax - wMin;
-  var wPad = wRange < 0.5 ? 0.2 : wRange * 0.15;
-  var yMin = Math.round((wMin - wPad) * 10) / 10;
-  var yMax = Math.round((wMax + wPad) * 10) / 10;
+  var svg = '<svg id="'+id+'-svg" width="'+W+'" height="'+H+'" style="display:block;background:#fff;" xmlns="http://www.w3.org/2000/svg">';
 
-  if (charts['chart-weight']) charts['chart-weight'].destroy();
-  var wCvs = document.getElementById('chart-weight');
-  var wlw = logicalW;
-  wCvs.style.width = wlw + 'px';
-  wCvs.style.height = '200px';
-  wCvs.width = Math.round(wlw * dpr);
-  wCvs.height = Math.round(200 * dpr);
-  var wBg = { id: 'wBg', beforeDraw: function(c){ var x=c.ctx; x.save(); x.fillStyle='#FFF'; x.fillRect(0,0,c.width,c.height); x.restore(); } };
-  charts['chart-weight'] = new Chart(wCvs, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        { label:'実績体重', data: recent.map(function(l){ return l.weight ? Math.round(l.weight*10)/10 : null; }),
-          borderColor:'#D4537E', backgroundColor:'rgba(212,83,126,0.08)',
-          tension:0.4, pointRadius:5, pointBackgroundColor:'#fff',
-          pointBorderColor:'#D4537E', pointBorderWidth:2,
-          fill:true, borderWidth:2.5, spanGaps:true },
-        { label:'目標体重', data: recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight*10)/10 : null; }),
-          borderColor:'#378ADD', backgroundColor:'transparent',
-          tension:0.4, pointRadius:3, pointBackgroundColor:'#378ADD',
-          borderWidth:2, borderDash:[6,4], spanGaps:true }
-      ]
-    },
-    options: {
-      responsive:false, animation:false, devicePixelRatio:dpr,
-      layout:{ padding:{ left:4, right:14, top:6, bottom:4 } },
-      plugins:{
-        legend:{ display:true, position:'top', align:'start',
-          labels:{ font:{size:13,family:'Arial,sans-serif',weight:'500'}, color:'#222', boxWidth:14, boxHeight:14, padding:12,
-            generateLabels:function(){ return [
-              {text:'実績体重',fillStyle:'#D4537E',strokeStyle:'transparent',lineWidth:0},
-              {text:'目標体重',fillStyle:'#378ADD',strokeStyle:'transparent',lineWidth:0}
-            ]; }
-          }
-        },
-        tooltip:{ backgroundColor:'#fff', titleColor:'#111', bodyColor:'#333', borderColor:'rgba(0,0,0,0.12)', borderWidth:1, padding:10, cornerRadius:8 }
-      },
-      scales:{
-        x:{ ticks:{font:{size:13,family:'Arial,sans-serif',weight:'500'},color:'#222',maxRotation:0,autoSkip:true,maxTicksLimit:7}, grid:{display:false}, border:{display:false} },
-        y:{ min:yMin, max:yMax,
-          ticks:{ font:{size:13,family:'Arial,sans-serif',weight:'500'}, color:'#222', padding:8, maxTicksLimit:4,
-            callback:function(v){ return parseFloat(v).toFixed(1)+'kg'; }
-          },
-          grid:{color:'rgba(0,0,0,0.07)'}, border:{display:false}
-        }
+  // 白背景
+  svg += '<rect width="'+W+'" height="'+H+'" fill="#fff"/>';
+
+  // グリッド線と目盛りラベル
+  ticks.forEach(function(v) {
+    var y = Math.round(yPos(v));
+    svg += '<line x1="'+pad.left+'" y1="'+y+'" x2="'+(W-pad.right)+'" y2="'+y+'" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>';
+    var label = opts.tickFmt ? opts.tickFmt(v) : Math.round(v).toLocaleString();
+    svg += '<text x="'+(pad.left-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="12" font-family="Arial,sans-serif" fill="#333">'+label+'</text>';
+  });
+
+  // X軸ラベル
+  var skipX = Math.ceil(labels.length / 7);
+  labels.forEach(function(lbl, i) {
+    if (i % skipX !== 0 && i !== labels.length - 1) return;
+    var x = Math.round(xPos(i));
+    svg += '<text x="'+x+'" y="'+(H-6)+'" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#333">'+lbl+'</text>';
+  });
+
+  // データ描画
+  data.forEach(function(series) {
+    if (!series.value && series.value !== 0) return;
+    var points = series.values || [series];
+    // ラインチャート
+    if (series.type === 'line' || opts.type === 'line') {
+      var pathD = '';
+      var areaD = '';
+      var first = true;
+      points.forEach(function(p, i) {
+        if (p.value === null || p.value === undefined) { first = true; return; }
+        var x = Math.round(xPos(i));
+        var y = Math.round(yPos(p.value));
+        if (first) { pathD += 'M'+x+','+y; areaD += 'M'+x+','+(pad.top+iH)+' L'+x+','+y; first = false; }
+        else { pathD += ' L'+x+','+y; areaD += ' L'+x+','+y; }
+      });
+      if (series.fill) {
+        areaD += ' L'+Math.round(xPos(points.length-1))+','+(pad.top+iH)+' Z';
+        svg += '<path d="'+areaD+'" fill="'+series.fill+'" opacity="0.12"/>';
       }
-    },
-    plugins:[wBg]
+      if (pathD) svg += '<path d="'+pathD+'" fill="none" stroke="'+series.color+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"'+(series.dash?' stroke-dasharray="'+series.dash+'"':'')+'/>';
+      points.forEach(function(p, i) {
+        if (p.value === null || p.value === undefined) return;
+        svg += '<circle cx="'+Math.round(xPos(i))+'" cy="'+Math.round(yPos(p.value))+'" r="4" fill="#fff" stroke="'+series.color+'" stroke-width="2"/>';
+      });
+    }
+    // 棒グラフ
+    if (opts.type === 'bar') {
+      var bW = Math.max(Math.floor(iW / labels.length * 0.6), 4);
+      points.forEach(function(p, i) {
+        if (p.value === null || p.value === undefined) return;
+        var x = Math.round(xPos(i));
+        var y0 = Math.round(yPos(0));
+        var y1 = Math.round(yPos(p.value));
+        var barH = Math.abs(y0 - y1);
+        var barY = Math.min(y0, y1);
+        svg += '<rect x="'+(x-bW/2)+'" y="'+barY+'" width="'+bW+'" height="'+barH+'" rx="3" fill="'+p.color+'"/>';
+      });
+    }
   });
 
-  // カロリー収支グラフ
-  var calBal = recent.map(function(l){
-    if (l.burned && l.intake) return Math.round(l.burned - l.intake);
-    return null;
+  svg += '</svg>';
+
+  var canvas = document.getElementById(id);
+  canvas.style.display = 'none';
+  var div = document.createElement('div');
+  div.style.minWidth = W + 'px';
+  div.innerHTML = svg;
+  canvas.parentNode.appendChild(div);
+}
+
+function drawWeightChart(recent, labels) {
+  makeChartSVG('chart-weight', [
+    { type:'line', color:'#D4537E', fill:'#D4537E',
+      values: recent.map(function(l){ return {value: l.weight ? Math.round(l.weight*10)/10 : null}; }) },
+    { type:'line', color:'#378ADD', dash:'6,4',
+      values: recent.map(function(l){ return {value: l.targetWeight ? Math.round(l.targetWeight*10)/10 : null}; }) }
+  ], labels, {
+    type: 'line',
+    tickFmt: function(v){ return parseFloat(v).toFixed(1)+'kg'; }
   });
-  mkChart('chart-cal', 'bar', [{
-    data: calBal,
-    backgroundColor: calBal.map(function(v){
-      return (v===null) ? 'rgba(200,200,200,0.3)' : (v>=0 ? '#1D9E75' : '#D4537E');
-    }),
-    borderRadius: 5, borderSkipped: false
-  }],
-  function(v){ return Math.round(v).toLocaleString()+'kcal'; },
-  [
-    { text: '黒字（余力あり）', fillStyle: '#1D9E75' },
-    { text: '赤字（超過）',     fillStyle: '#D4537E' }
-  ], logicalW);
 
-  // 歩数グラフ
-  mkChart('chart-steps', 'bar', [{
-    data: recent.map(function(l){ return l.steps ? Math.round(l.steps) : null; }),
-    backgroundColor: recent.map(function(l){
-      if (!l.steps) return 'rgba(200,200,200,0.2)';
-      return l.steps >= 8000 ? '#378ADD' : '#BA7517';
-    }),
-    borderRadius: 5, borderSkipped: false
-  }],
-  function(v){ return Math.round(v).toLocaleString()+'歩'; },
-  [
-    { text: '8,000歩以上', fillStyle: '#378ADD' },
-    { text: '8,000歩未満', fillStyle: '#BA7517' }
-  ], logicalW);
+  // 凡例
+  var wrap = document.getElementById('chart-weight').parentNode;
+  var existLeg = wrap.querySelector('.custom-legend');
+  if (!existLeg) {
+    var leg = document.createElement('div');
+    leg.className = 'custom-legend';
+    leg.style.cssText = 'display:flex;gap:14px;padding:4px 0 8px 58px;';
+    leg.innerHTML =
+      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#D4537E;border-radius:3px;"></span>実績体重</span>'+
+      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#378ADD;border-radius:3px;"></span>目標体重</span>';
+    wrap.insertBefore(leg, wrap.querySelector('[id$="-svg"]') || wrap.firstChild);
+  }
 }
 
-function editLog(date) {
-  // 入力タブに移動して該当日付をセット
-  switchTab('input');
-  // 日付をYYYY-MM-DD形式に変換してセット
-  var p = date.split('/');
-  var y = parseInt(p[0]);
-  var m = ('0'+parseInt(p[1])).slice(-2);
-  var d = ('0'+parseInt(p[2])).slice(-2);
-  document.getElementById('f-date').value = y+'-'+m+'-'+d;
-  loadByDate(date);
-  fetchGoal(date);
-  showToast(date+' のデータを読み込みました', 'ok');
-  window.scrollTo(0, 0);
+function drawCalChart(recent, labels) {
+  makeChartSVG('chart-cal', [{}], labels, {
+    type: 'bar',
+    tickFmt: function(v){ return Math.round(v).toLocaleString()+'kcal'; }
+  });
+  // 手動で棒グラフ再描画（色分けのため）
+  var existSvg = document.getElementById('chart-cal-svg');
+  if (existSvg) existSvg.remove();
+
+  var calVals = recent.map(function(l){
+    return (l.burned && l.intake) ? Math.round(l.burned - l.intake) : null;
+  });
+  var allV = calVals.filter(function(v){return v!==null;});
+  var vMin = allV.length ? Math.min.apply(null, allV) : -500;
+  var vMax = allV.length ? Math.max.apply(null, allV) : 500;
+  var vRange = Math.max(vMax - vMin, 100);
+  var pad2 = vRange * 0.15;
+  var yMin = vMin - pad2;
+  var yMax = vMax + pad2;
+  var yRange = yMax - yMin;
+
+  var W = Math.max(recent.length * 44, 320);
+  var H = 200;
+  var pad = {top:20,right:16,bottom:36,left:70};
+  var iW = W - pad.left - pad.right;
+  var iH = H - pad.top - pad.bottom;
+
+  function xPos(i){ return pad.left + (i+0.5) * (iW/recent.length); }
+  function yPos(v){ return pad.top + (1-(v-yMin)/yRange)*iH; }
+
+  var tickCount = 4;
+  var ticks = [];
+  for(var t=0;t<=tickCount;t++) ticks.push(yMin + t*(yRange/tickCount));
+
+  var svg = '<svg id="chart-cal-svg" width="'+W+'" height="'+H+'" style="display:block;background:#fff;" xmlns="http://www.w3.org/2000/svg">';
+  svg += '<rect width="'+W+'" height="'+H+'" fill="#fff"/>';
+
+  ticks.forEach(function(v){
+    var y = Math.round(yPos(v));
+    svg += '<line x1="'+pad.left+'" y1="'+y+'" x2="'+(W-pad.right)+'" y2="'+y+'" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>';
+    svg += '<text x="'+(pad.left-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="12" font-family="Arial,sans-serif" fill="#333">'+Math.round(v).toLocaleString()+'kcal</text>';
+  });
+
+  var skipX = Math.ceil(recent.length/7);
+  labels.forEach(function(lbl,i){
+    if(i%skipX!==0 && i!==labels.length-1) return;
+    svg += '<text x="'+Math.round(xPos(i))+'" y="'+(H-6)+'" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#333">'+lbl+'</text>';
+  });
+
+  var bW = Math.max(Math.floor(iW/recent.length*0.6), 4);
+  calVals.forEach(function(v,i){
+    if(v===null) return;
+    var x = Math.round(xPos(i));
+    var y0 = Math.round(yPos(0));
+    var y1 = Math.round(yPos(v));
+    var barH = Math.abs(y0-y1);
+    var barY = Math.min(y0,y1);
+    var color = v>=0 ? '#1D9E75' : '#D4537E';
+    svg += '<rect x="'+(x-bW/2)+'" y="'+barY+'" width="'+bW+'" height="'+barH+'" rx="3" fill="'+color+'"/>';
+  });
+  svg += '</svg>';
+
+  var canvas = document.getElementById('chart-cal');
+  canvas.style.display = 'none';
+  var div = document.createElement('div');
+  div.style.minWidth = W+'px';
+  div.innerHTML = svg;
+  canvas.parentNode.appendChild(div);
+
+  var wrap = canvas.parentNode;
+  var existLeg = wrap.querySelector('.custom-legend');
+  if(!existLeg){
+    var leg = document.createElement('div');
+    leg.className = 'custom-legend';
+    leg.style.cssText = 'display:flex;gap:14px;padding:4px 0 8px 70px;';
+    leg.innerHTML =
+      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#1D9E75;border-radius:3px;"></span>黒字（余力あり）</span>'+
+      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#D4537E;border-radius:3px;"></span>赤字（超過）</span>';
+    wrap.insertBefore(leg, div);
+  }
 }
 
-function deleteLog(date) {
-  if (!confirm(date+' のデータを削除しますか？')) return;
-  logs = logs.filter(function(l){ return l.date !== date; });
-  localStorage.setItem('dietlogs_v2', JSON.stringify(logs));
-  renderLog();
-  showToast('削除しました', 'ok');
+function drawStepsChart(recent, labels) {
+  var stepsVals = recent.map(function(l){ return l.steps ? Math.round(l.steps) : null; });
+  var allV = stepsVals.filter(function(v){return v!==null;});
+  var vMax = allV.length ? Math.max.apply(null, allV) : 10000;
+  var yMin = 0;
+  var yMax = vMax * 1.2;
+  var yRange = yMax - yMin;
+
+  var existSvg = document.getElementById('chart-steps-svg');
+  if(existSvg) existSvg.remove();
+
+  var W = Math.max(recent.length*44, 320);
+  var H = 200;
+  var pad = {top:20,right:16,bottom:36,left:70};
+  var iW = W-pad.left-pad.right;
+  var iH = H-pad.top-pad.bottom;
+
+  function xPos(i){ return pad.left+(i+0.5)*(iW/recent.length); }
+  function yPos(v){ return pad.top+(1-v/yRange)*iH; }
+
+  var tickCount = 4;
+  var ticks = [];
+  for(var t=0;t<=tickCount;t++) ticks.push(yMin+t*(yRange/tickCount));
+
+  var svg = '<svg id="chart-steps-svg" width="'+W+'" height="'+H+'" style="display:block;background:#fff;" xmlns="http://www.w3.org/2000/svg">';
+  svg += '<rect width="'+W+'" height="'+H+'" fill="#fff"/>';
+
+  ticks.forEach(function(v){
+    var y = Math.round(yPos(v));
+    svg += '<line x1="'+pad.left+'" y1="'+y+'" x2="'+(W-pad.right)+'" y2="'+y+'" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>';
+    svg += '<text x="'+(pad.left-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="12" font-family="Arial,sans-serif" fill="#333">'+Math.round(v).toLocaleString()+'歩</text>';
+  });
+
+  var skipX = Math.ceil(recent.length/7);
+  labels.forEach(function(lbl,i){
+    if(i%skipX!==0 && i!==labels.length-1) return;
+    svg += '<text x="'+Math.round(xPos(i))+'" y="'+(H-6)+'" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#333">'+lbl+'</text>';
+  });
+
+  var bW = Math.max(Math.floor(iW/recent.length*0.6), 4);
+  stepsVals.forEach(function(v,i){
+    if(v===null) return;
+    var x = Math.round(xPos(i));
+    var y0 = Math.round(yPos(0));
+    var y1 = Math.round(yPos(v));
+    var color = v>=8000 ? '#378ADD' : '#BA7517';
+    svg += '<rect x="'+(x-bW/2)+'" y="'+y1+'" width="'+bW+'" height="'+(y0-y1)+'" rx="3" fill="'+color+'"/>';
+  });
+  svg += '</svg>';
+
+  var canvas = document.getElementById('chart-steps');
+  canvas.style.display = 'none';
+  var div = document.createElement('div');
+  div.style.minWidth = W+'px';
+  div.innerHTML = svg;
+  canvas.parentNode.appendChild(div);
+
+  var wrap = canvas.parentNode;
+  var existLeg = wrap.querySelector('.custom-legend');
+  if(!existLeg){
+    var leg = document.createElement('div');
+    leg.className = 'custom-legend';
+    leg.style.cssText = 'display:flex;gap:14px;padding:4px 0 8px 70px;';
+    leg.innerHTML =
+      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#378ADD;border-radius:3px;"></span>8,000歩以上</span>'+
+      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#BA7517;border-radius:3px;"></span>8,000歩未満</span>';
+    wrap.insertBefore(leg, div);
+  }
 }
 
 function renderLog() {
