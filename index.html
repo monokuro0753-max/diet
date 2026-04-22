@@ -737,82 +737,66 @@ function renderGraphs() {
   }
 
   // 体重グラフ
-  // 体重グラフのY軸範囲を計算
-  var weightVals = recent.map(function(l){ return l.weight; }).filter(function(v){ return v; });
-  var targetVals = recent.map(function(l){ return l.targetWeight; }).filter(function(v){ return v; });
+  // 体重グラフ（実績＋目標）
+  var weightVals = recent.map(function(l){ return l.weight; }).filter(Boolean);
+  var targetVals = recent.map(function(l){ return l.targetWeight; }).filter(Boolean);
   var allVals = weightVals.concat(targetVals);
   var wMin = allVals.length ? Math.min.apply(null, allVals) : 70;
   var wMax = allVals.length ? Math.max.apply(null, allVals) : 90;
   var wRange = wMax - wMin;
-  var wPad = wRange < 0.5 ? 0.3 : wRange * 0.2;
-  var yMin = Math.floor((wMin - wPad) * 10) / 10;
-  var yMax = Math.ceil((wMax + wPad) * 10) / 10;
+  var wPad = wRange < 0.5 ? 0.2 : wRange * 0.15;
+  var yMin = Math.round((wMin - wPad) * 10) / 10;
+  var yMax = Math.round((wMax + wPad) * 10) / 10;
 
   if (charts['chart-weight']) charts['chart-weight'].destroy();
-  var cvs = document.getElementById('chart-weight');
-  var lw = logicalW;
-  cvs.style.width = lw + 'px';
-  cvs.style.height = '200px';
-  cvs.width = Math.round(lw * dpr);
-  cvs.height = Math.round(200 * dpr);
-  var ctx = cvs.getContext('2d');
-  var whiteBg2 = { id: 'whiteBg', beforeDraw: function(chart) { var c = chart.ctx; c.save(); c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, chart.width, chart.height); c.restore(); } };
-  charts['chart-weight'] = new Chart(cvs, {
+  var wCvs = document.getElementById('chart-weight');
+  var wlw = logicalW;
+  wCvs.style.width = wlw + 'px';
+  wCvs.style.height = '200px';
+  wCvs.width = Math.round(wlw * dpr);
+  wCvs.height = Math.round(200 * dpr);
+  var wBg = { id: 'wBg', beforeDraw: function(c){ var x=c.ctx; x.save(); x.fillStyle='#FFF'; x.fillRect(0,0,c.width,c.height); x.restore(); } };
+  charts['chart-weight'] = new Chart(wCvs, {
     type: 'line',
     data: {
       labels: labels,
       datasets: [
-        {
-          label: '実績体重',
-          data: recent.map(function(l){ return l.weight ? Math.round(l.weight*10)/10 : null; }),
-          borderColor: '#D4537E', backgroundColor: 'rgba(212,83,126,0.08)',
-          tension: 0.4, pointRadius: 5, pointBackgroundColor: '#fff',
-          pointBorderColor: '#D4537E', pointBorderWidth: 2,
-          fill: true, borderWidth: 2.5, spanGaps: true
-        },
-        {
-          label: '目標体重',
-          data: recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight*10)/10 : null; }),
-          borderColor: '#378ADD', backgroundColor: 'transparent',
-          tension: 0.4, pointRadius: 3, pointBackgroundColor: '#378ADD',
-          borderWidth: 2, borderDash: [6,4], spanGaps: true
-        }
+        { label:'実績体重', data: recent.map(function(l){ return l.weight ? Math.round(l.weight*10)/10 : null; }),
+          borderColor:'#D4537E', backgroundColor:'rgba(212,83,126,0.08)',
+          tension:0.4, pointRadius:5, pointBackgroundColor:'#fff',
+          pointBorderColor:'#D4537E', pointBorderWidth:2,
+          fill:true, borderWidth:2.5, spanGaps:true },
+        { label:'目標体重', data: recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight*10)/10 : null; }),
+          borderColor:'#378ADD', backgroundColor:'transparent',
+          tension:0.4, pointRadius:3, pointBackgroundColor:'#378ADD',
+          borderWidth:2, borderDash:[6,4], spanGaps:true }
       ]
     },
     options: {
-      responsive: false, animation: false, devicePixelRatio: dpr,
-      layout: { padding: { left: 4, right: 14, top: 6, bottom: 4 } },
-      plugins: {
-        legend: {
-          display: true, position: 'top', align: 'start',
-          labels: {
-            font: { size: 13, family: 'Arial, sans-serif', weight: '500' },
-            color: '#222', boxWidth: 14, boxHeight: 14, padding: 12,
-            generateLabels: function(){ return [
-              { text: '実績体重', fillStyle: '#D4537E', strokeStyle: 'transparent', lineWidth: 0 },
-              { text: '目標体重', fillStyle: '#378ADD', strokeStyle: 'transparent', lineWidth: 0 }
+      responsive:false, animation:false, devicePixelRatio:dpr,
+      layout:{ padding:{ left:4, right:14, top:6, bottom:4 } },
+      plugins:{
+        legend:{ display:true, position:'top', align:'start',
+          labels:{ font:{size:13,family:'Arial,sans-serif',weight:'500'}, color:'#222', boxWidth:14, boxHeight:14, padding:12,
+            generateLabels:function(){ return [
+              {text:'実績体重',fillStyle:'#D4537E',strokeStyle:'transparent',lineWidth:0},
+              {text:'目標体重',fillStyle:'#378ADD',strokeStyle:'transparent',lineWidth:0}
             ]; }
           }
         },
-        tooltip: { backgroundColor: '#fff', titleColor: '#111', bodyColor: '#333', borderColor: 'rgba(0,0,0,0.12)', borderWidth: 1, padding: 10, cornerRadius: 8 }
+        tooltip:{ backgroundColor:'#fff', titleColor:'#111', bodyColor:'#333', borderColor:'rgba(0,0,0,0.12)', borderWidth:1, padding:10, cornerRadius:8 }
       },
-      scales: {
-        x: {
-          ticks: { font: { size: 13, family: 'Arial, sans-serif', weight: '500' }, color: '#222', maxRotation: 0, autoSkip: true, maxTicksLimit: 7 },
-          grid: { display: false }, border: { display: false }
-        },
-        y: {
-          min: yMin, max: yMax,
-          ticks: {
-            font: { size: 13, family: 'Arial, sans-serif', weight: '500' },
-            color: '#222', padding: 10, maxTicksLimit: 4,
-            callback: function(v){ return parseFloat(v).toFixed(1) + 'kg'; }
+      scales:{
+        x:{ ticks:{font:{size:13,family:'Arial,sans-serif',weight:'500'},color:'#222',maxRotation:0,autoSkip:true,maxTicksLimit:7}, grid:{display:false}, border:{display:false} },
+        y:{ min:yMin, max:yMax,
+          ticks:{ font:{size:13,family:'Arial,sans-serif',weight:'500'}, color:'#222', padding:8, maxTicksLimit:4,
+            callback:function(v){ return parseFloat(v).toFixed(1)+'kg'; }
           },
-          grid: { color: 'rgba(0,0,0,0.07)' }, border: { display: false }
+          grid:{color:'rgba(0,0,0,0.07)'}, border:{display:false}
         }
       }
     },
-    plugins: [whiteBg2]
+    plugins:[wBg]
   });
 
   // カロリー収支グラフ
