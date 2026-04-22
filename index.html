@@ -406,10 +406,17 @@ var logs = (function() {
         arr.push(Object.assign({}, l, { date: k }));
       }
     });
-    arr.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+    arr.sort(function(a,b){ return dateVal(a.date) - dateVal(b.date); });
     return arr;
   } catch(e) { return []; }
 })();
+
+// 日付を数値化してソートに使う（"YYYY/M/D" → YYYYMMDD）
+function dateVal(d) {
+  var p = String(d).split('/');
+  if (p.length !== 3) return 0;
+  return +p[0]*10000 + +p[1]*100 + +p[2];
+}
 
 function saveLogs() { localStorage.setItem('dl3', JSON.stringify(logs)); }
 
@@ -423,7 +430,7 @@ function upsertLog(row) {
   var i = logs.findIndex(function(l){ return l.date === k; });
   if (i >= 0) logs[i] = Object.assign({}, logs[i], row);
   else logs.push(row);
-  logs.sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  logs.sort(function(a,b){ return dateVal(a.date) - dateVal(b.date); });
   saveLogs();
 }
 
@@ -471,11 +478,10 @@ function goTab(name) {
   });
   document.querySelectorAll('.page').forEach(function(p) {
     p.classList.remove('on');
-    p.style.display = 'none';
+    p.style.display = '';   // インラインstyleをリセットしてCSSに委ねる
   });
   var pg = document.getElementById('page-' + name);
-  pg.classList.add('on');
-  pg.style.display = 'block';
+  pg.classList.add('on');   // .page.on { display:block } がCSSで効く
   if (name === 'graph') renderGraphs();
   if (name === 'log') renderLog();
   if (name === 'sheet') {
@@ -588,7 +594,7 @@ function saveLog() {
 // ================================================================
 // 今日の目標カード
 // ================================================================
-async function loadGoal(dateNd) {
+function loadGoal(dateNd) {
   var gc = document.getElementById('goal-content');
   var dl = document.getElementById('goal-date-lbl');
   if (dl) dl.textContent = toLabel(dateNd);
@@ -597,68 +603,81 @@ async function loadGoal(dateNd) {
     return;
   }
   gc.innerHTML = '<div style="font-size:12px;color:#BBB;padding:4px 0;">読み込み中…</div>';
-  try {
-    var res = await fetch(gasUrl + '?date=' + encodeURIComponent(dateNd));
-    var g = await res.json();
-    if (!g || !Object.keys(g).length) {
-      gc.innerHTML = '<div style="font-size:12px;color:#BBB;padding:4px 0;">この日の目標データがありません</div>';
-      return;
-    }
-    // 目標体重をローカルにキャッシュ
-    if (g.targetWeight) {
-      var tw = parseFloat(g.targetWeight);
-      if (!isNaN(tw)) {
-        var ex = getLog(dateNd) || { date: dateNd };
-        ex.targetWeight = tw;
-        upsertLog(ex);
-      }
-    }
-    var l = getLog(dateNd) || {};
-    var ai = l.intake  || null;
-    var ab = l.burned  || null;
-    var ti = g.targetIntake ? parseFloat(g.targetIntake) : null;
-    var tb = g.targetBurned ? parseFloat(g.targetBurned) : null;
 
-    var html = '';
+  fetch(gasUrl + '?date=' + encodeURIComponent(dateNd))
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(g) { renderGoal(gc, g, dateNd); })
+    .catch(function(err) {
+      console.error('loadGoal error:', err);
+      gc.innerHTML =
+        '<div style="font-size:12px;color:#D4537E;line-height:1.7;padding:4px 0;">' +
+        '⚠️ 目標データを取得できませんでした。<br>' +
+        '確認事項：①URLが正しいか ②デプロイ設定で「アクセスできるユーザー」が<b>全員</b>になっているか ' +
+        '③スクリプトを更新後に<b>新しいデプロイ</b>をしているか</div>';
+    });
+}
 
-    // 目標食事
-    var meals = [['朝食',g.breakfast],['昼食',g.lunch],['夕食',g.dinner],['運動',g.training]];
-    var hasMeal = meals.some(function(m){ return m[1]; });
-    if (hasMeal) {
-      html += '<div class="goal-sub">目標食事・運動</div>';
-      meals.forEach(function(m) {
-        if (!m[1]) return;
-        html += '<div class="goal-row"><span class="goal-lbl">'+m[0]+'</span><span class="goal-val">'+escHtml(m[1])+'</span></div>';
-      });
-    }
-
-    // カロリー進捗バー
-    html += '<div class="goal-sub" style="margin-top:12px;">カロリー進捗</div>';
-
-    function progRow(lbl, actual, target, isIntake) {
-      var diff = (actual && target) ? Math.round(actual - target) : null;
-      var pct  = (actual && target) ? Math.min(Math.round(actual / target * 100), 150) : 0;
-      var good = diff === null ? null : (isIntake ? diff <= 0 : diff >= 0);
-      var barC = good === null ? '#DDD' : (good ? '#1D9E75' : '#D4537E');
-      var diffCls = good === null ? '' : (good ? 'diff-g' : 'diff-p');
-      var diffStr = diff !== null ? '<span class="'+diffCls+'">'+(diff>0?'+':'')+diff.toLocaleString()+'</span>' : '';
-      return '<div class="prog-wrap">' +
-        '<div class="prog-top">' +
-          '<span class="prog-lbl">'+lbl+'</span>' +
-          '<span class="prog-num">'+(actual?Math.round(actual).toLocaleString():'未入力')+
-          ' <span class="stat-label">/ '+(target?Math.round(target).toLocaleString():'—')+' kcal</span></span>' +
-          diffStr +
-        '</div>' +
-        '<div class="prog-bar-bg"><div class="prog-bar-fill" style="width:'+pct+'%;background:'+barC+';"></div></div>' +
+function renderGoal(gc, g, dateNd) {
+  if (!g || !Object.keys(g).length || g.error) {
+    gc.innerHTML = '<div style="font-size:12px;color:#BBB;padding:4px 0;">' +
+      (g && g.error ? 'スプシエラー: ' + escHtml(g.error) : 'この日の目標データがスプレッドシートにありません') +
       '</div>';
-    }
-    html += progRow('摂取', ai, ti, true);
-    html += progRow('消費', ab, tb, false);
-
-    gc.innerHTML = html;
-  } catch(e) {
-    gc.innerHTML = '<div style="font-size:12px;color:#BBB;padding:4px 0;">目標データの取得に失敗しました</div>';
+    return;
   }
+  // 目標体重をローカルにキャッシュ（既存データを壊さないよう既存を先にgetして上書き）
+  if (g.targetWeight) {
+    var tw = parseFloat(g.targetWeight);
+    if (!isNaN(tw)) {
+      var ex = Object.assign({}, getLog(dateNd) || { date: dateNd }, { targetWeight: tw });
+      upsertLog(ex);
+    }
+  }
+  var l  = getLog(dateNd) || {};
+  var ai = l.intake  || null;
+  var ab = l.burned  || null;
+  var ti = g.targetIntake ? parseFloat(g.targetIntake) : null;
+  var tb = g.targetBurned ? parseFloat(g.targetBurned) : null;
+
+  var html = '';
+
+  // 目標食事・運動
+  var meals = [['朝食',g.breakfast],['昼食',g.lunch],['夕食',g.dinner],['運動',g.training]];
+  var hasMeal = meals.some(function(m){ return m[1]; });
+  if (hasMeal) {
+    html += '<div class="goal-sub">目標食事・運動</div>';
+    meals.forEach(function(m) {
+      if (!m[1]) return;
+      html += '<div class="goal-row"><span class="goal-lbl">'+m[0]+'</span><span class="goal-val">'+escHtml(String(m[1]))+'</span></div>';
+    });
+  }
+
+  // カロリー進捗バー
+  html += '<div class="goal-sub" style="margin-top:12px;">カロリー進捗</div>';
+  html += progRow('摂取', ai, ti, true);
+  html += progRow('消費', ab, tb, false);
+
+  gc.innerHTML = html;
+}
+
+function progRow(lbl, actual, target, isIntake) {
+  var diff = (actual != null && target) ? Math.round(actual - target) : null;
+  var pct  = (actual != null && target) ? Math.min(Math.round(actual / target * 100), 150) : 0;
+  var good = diff === null ? null : (isIntake ? diff <= 0 : diff >= 0);
+  var barC = good === null ? '#DDD' : (good ? '#1D9E75' : '#D4537E');
+  var diffCls = good === null ? '' : (good ? 'diff-g' : 'diff-p');
+  var diffStr = diff !== null ? '<span class="'+diffCls+'">'+(diff>0?'+':'')+diff.toLocaleString()+'</span>' : '';
+  return '<div class="prog-wrap">' +
+    '<div class="prog-top">' +
+      '<span class="prog-lbl">'+lbl+'</span>' +
+      '<span class="prog-num">'+(actual!=null?Math.round(actual).toLocaleString():'未入力')+
+      ' <span class="stat-label">/ '+(target?Math.round(target).toLocaleString():'—')+' kcal</span></span>' +
+      diffStr +
+    '</div>' +
+    '<div class="prog-bar-bg"><div class="prog-bar-fill" style="width:'+pct+'%;background:'+barC+';"></div></div>' +
+  '</div>';
 }
 
 function escHtml(s) {
@@ -708,35 +727,43 @@ function renderGraphs() {
   var tl = getLog(tk);
   var scEl = document.getElementById('today-sum');
   var sbEl = document.getElementById('today-sum-body');
-  if (tl && scEl) {
-    scEl.style.display = 'block';
-    var sh = '';
-    var cb = (tl.burned && tl.intake) ? Math.round(tl.burned - tl.intake) : null;
-    if (cb !== null) {
-      sh += '<div class="sum-row"><span class="sum-lbl">消費余力</span>' +
-        '<span class="'+(cb>=0?'diff-g':'diff-p')+'">'+(cb>=0?'+':'')+cb.toLocaleString()+' kcal</span></div>';
+  if (scEl) {
+    if (tl) {
+      var sh = '';
+      var cb = (tl.burned && tl.intake) ? Math.round(tl.burned - tl.intake) : null;
+      if (cb !== null) {
+        sh += '<div class="sum-row"><span class="sum-lbl">消費余力</span>' +
+          '<span class="'+(cb>=0?'diff-g':'diff-p')+'">'+(cb>=0?'+':'')+cb.toLocaleString()+' kcal</span></div>';
+      }
+      if (tl.steps) {
+        var spct = Math.min(Math.round(tl.steps/8000*100), 100);
+        sh += '<div class="sum-row col">' +
+          '<div style="display:flex;justify-content:space-between;width:100%;">' +
+            '<span class="sum-lbl">歩数</span>' +
+            '<span class="sum-val">'+Math.round(tl.steps).toLocaleString()+' 歩</span>' +
+          '</div>' +
+          '<div class="bar-wrap"><div class="bar-fill" style="width:'+spct+'%;background:'+(tl.steps>=8000?'#378ADD':'#BA7517')+';"></div></div>' +
+        '</div>';
+      }
+      if (tl.training) {
+        sh += '<div class="sum-row"><span class="sum-lbl">運動</span>' +
+          '<span class="sum-val" style="font-size:12px;text-align:right;max-width:66%;">'+escHtml(tl.training)+'</span></div>';
+      }
+      if (sbEl) sbEl.innerHTML = sh || '<div style="font-size:12px;color:#BBB;padding:4px 0;">今日の実績を入力してください</div>';
+      scEl.style.display = 'block';
+    } else {
+      scEl.style.display = 'none';
     }
-    if (tl.steps) {
-      var spct = Math.min(Math.round(tl.steps/8000*100), 100);
-      sh += '<div class="sum-row col">' +
-        '<div style="display:flex;justify-content:space-between;width:100%;">' +
-          '<span class="sum-lbl">歩数</span>' +
-          '<span class="sum-val">'+Math.round(tl.steps).toLocaleString()+' 歩</span>' +
-        '</div>' +
-        '<div class="bar-wrap"><div class="bar-fill" style="width:'+spct+'%;background:'+(tl.steps>=8000?'#378ADD':'#BA7517')+';"></div></div>' +
-      '</div>';
-    }
-    if (tl.training) {
-      sh += '<div class="sum-row"><span class="sum-lbl">運動</span>' +
-        '<span class="sum-val" style="font-size:12px;text-align:right;max-width:66%;">'+escHtml(tl.training)+'</span></div>';
-    }
-    sbEl.innerHTML = sh || '<div style="font-size:12px;color:#BBB;padding:4px 0;">今日の実績を入力してください</div>';
-  } else if (scEl) { scEl.style.display = 'none'; }
+  }
 
   // --- SVG チャート ---
   var wVals  = recent.map(function(l){ return l.weight ? Math.round(l.weight*10)/10 : null; });
   var twVals = recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight*10)/10 : null; });
-  var cVals  = recent.map(function(l){ return (l.burned&&l.intake) ? Math.round(l.burned-l.intake) : null; });
+  // burned か intake のどちらかがあれば収支を計算（片方0扱い）
+  var cVals  = recent.map(function(l){
+    if (!l.burned && !l.intake) return null;
+    return Math.round((l.burned||0) - (l.intake||0));
+  });
   var sVals  = recent.map(function(l){ return l.steps ? Math.round(l.steps) : null; });
 
   drawChart('chart-weight', 'leg-weight', labels, {
