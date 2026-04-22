@@ -309,14 +309,25 @@ function doGet(e) {
 }
 
 function findRow(sh, dateStr) {
+  // dateStr = "YYYY/M/D" → ゼロパディングして "YYYY/MM/DD" に正規化
   var parts = dateStr.split('/');
   if (parts.length !== 3) return -1;
-  var y=parseInt(parts[0]),m=parseInt(parts[1])-1,d=parseInt(parts[2]);
+  var y = parts[0];
+  var m = ('0' + parts[1]).slice(-2);
+  var d = ('0' + parts[2]).slice(-2);
+  var target = y + '/' + m + '/' + d; // 例: "2026/04/22"
+
+  var ss = sh.getParent();
+  var tz = ss.getSpreadsheetTimeZone();
   var data = sh.getDataRange().getValues();
   for (var i = 1; i &lt; data.length; i++) {
     var cd = data[i][0];
-    if (cd instanceof Date &amp;&amp; cd.getFullYear()===y
-        &amp;&amp; cd.getMonth()===m &amp;&amp; cd.getDate()===d) return i+1;
+    if (!cd) continue;
+    // スプシのタイムゾーンで文字列化して比較（タイムゾーンズレを完全回避）
+    var cellStr = cd instanceof Date
+      ? Utilities.formatDate(cd, tz, 'yyyy/MM/dd')
+      : String(cd).trim();
+    if (cellStr === target) return i + 1;
   }
   return -1;
 }
