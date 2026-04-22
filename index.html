@@ -743,7 +743,8 @@ function renderGraphs() {
   var allVals = weightVals.concat(targetVals);
   var wMin = allVals.length ? Math.min.apply(null, allVals) : 70;
   var wMax = allVals.length ? Math.max.apply(null, allVals) : 90;
-  var wPad = Math.max((wMax - wMin) * 0.5, 0.3);
+  var wRange = wMax - wMin;
+  var wPad = wRange < 0.5 ? 0.3 : wRange * 0.2;
   var yMin = Math.floor((wMin - wPad) * 10) / 10;
   var yMax = Math.ceil((wMax + wPad) * 10) / 10;
 
