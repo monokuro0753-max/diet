@@ -428,6 +428,8 @@ var logs = (function() {
         arr.push(Object.assign({}, l, { date: k }));
       }
     });
+    // 体重異常値（100kg超）を自動クリーン
+    arr.forEach(function(l){ if (l.weight && l.weight > 200) l.weight = null; });
     arr.sort(function(a,b){ return dateVal(a.date) - dateVal(b.date); });
     return arr;
   } catch(e) { return []; }
@@ -799,7 +801,8 @@ function renderGraphs() {
   }
 
   // --- SVG チャート ---
-  var wVals  = recent.map(function(l){ return l.weight ? Math.round(l.weight*10)/10 : null; });
+  // 体重は1〜100kgの範囲外は異常値としてnull扱い
+  var wVals  = recent.map(function(l){ var w = l.weight ? Math.round(l.weight*10)/10 : null; return (w && w >= 1 && w <= 200) ? w : null; });
   var twVals = recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight*10)/10 : null; });
   // burned か intake のどちらかがあれば収支を計算（片方0扱い）
   var cVals  = recent.map(function(l){
@@ -1057,6 +1060,8 @@ function importFromGas() {
         if (!row.date) { skip++; return; }
         row.date = nd(row.date);
         if (!row.date) { skip++; return; }
+        // 体重が100超はグラム単位の誤りとしてnullに
+        if (row.weight && row.weight > 200) row.weight = null;
         upsertLog(row);
         count++;
       });
