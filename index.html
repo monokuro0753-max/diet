@@ -153,11 +153,11 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 .prog-bar { height: 5px; border-radius: 4px; }
 .goal-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 0.5px solid var(--border); gap: 8px; }
 .goal-row:last-child { border-bottom: none; }
-.goal-lbl { font-size: 12px; color: var(--muted); flex-shrink: 0; width: 80px; }
-.goal-val { font-size: 13px; color: var(--text); flex: 1; }
+.goal-lbl { font-size: 12px; color: #555555; flex-shrink: 0; width: 80px; }
+.goal-val { font-size: 13px; color: #222222; flex: 1; }
 .progress-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
 .progress-row:last-child { border-bottom: none; }
-.progress-lbl { font-size: 12px; color: var(--muted); width: 80px; flex-shrink: 0; }
+.progress-lbl { font-size: 12px; color: #555555; width: 80px; flex-shrink: 0; }
 .progress-vals { flex: 1; }
 .progress-bar-wrap { background: var(--border); border-radius: 4px; height: 6px; margin-top: 4px; overflow: hidden; }
 .progress-bar { height: 6px; border-radius: 4px; transition: width 0.3s; }
@@ -259,12 +259,13 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
       </div>
     </div>
 
-    <div class="card" id="goal-card" style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.1);">
-      <div class="card-label" style="display:flex;align-items:center;justify-content:space-between;color:#333;">
+    <div id="goal-card" style="background:#FFFFFF;border-radius:16px;border:1px solid #E0E0E0;padding:16px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span style="font-size:11px;font-weight:700;color:#444;letter-spacing:0.06em;text-transform:uppercase;">今日の目標</span>
         <span>今日の目標</span>
-        <span id="goal-date-label" style="font-size:11px;color:#888;font-weight:400;"></span>
+        <span id="goal-date-label" style="font-size:11px;color:#666;font-weight:400;"></span>
       </div>
-      <div id="goal-content"><div style="font-size:12px;color:#888;padding:6px 0;">連携タブでURLを設定すると目標が表示されます</div></div>
+      <div id="goal-content"><div style="font-size:12px;color:#666;padding:6px 0;">連携タブでURLを設定すると目標が表示されます</div></div>
     </div>
 
     <button class="save-btn" onclick="saveLog()">保存する</button>
@@ -293,7 +294,7 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 
   <!-- 履歴 -->
   <div id="page-log" class="page">
-    <div class="card" id="log-list"></div>
+    <div id="log-list" style="background:#FFFFFF;border-radius:16px;border:1px solid #E0E0E0;padding:16px;"></div>
   </div>
 
   <!-- 連携 -->
@@ -533,14 +534,14 @@ async function fetchGoal(dateVal) {
     var html = '';
 
     // 目標食事
-    html += '<div style="font-size:11px;font-weight:500;color:var(--muted);margin:4px 0 6px;letter-spacing:0.05em;text-transform:uppercase;">目標食事</div>';
+    html += '<div style="font-size:11px;font-weight:500;color:#555;margin:4px 0 6px;letter-spacing:0.05em;text-transform:uppercase;">目標食事</div>';
     if (g.breakfast) html += '<div class="goal-row"><span class="goal-lbl">朝食</span><span class="goal-val">'+g.breakfast+'</span></div>';
     if (g.lunch) html += '<div class="goal-row"><span class="goal-lbl">昼食</span><span class="goal-val">'+g.lunch+'</span></div>';
     if (g.dinner) html += '<div class="goal-row"><span class="goal-lbl">夕食</span><span class="goal-val">'+g.dinner+'</span></div>';
     if (g.training) html += '<div class="goal-row"><span class="goal-lbl">運動</span><span class="goal-val">'+g.training+'</span></div>';
 
     // 進捗
-    html += '<div style="font-size:11px;font-weight:500;color:var(--muted);margin:12px 0 6px;letter-spacing:0.05em;text-transform:uppercase;">カロリー進捗</div>';
+    html += '<div style="font-size:11px;font-weight:500;color:#555;margin:12px 0 6px;letter-spacing:0.05em;text-transform:uppercase;">カロリー進捗</div>';
 
     // 摂取
     html += '<div class="progress-row">';
@@ -754,7 +755,7 @@ function renderGraphs() {
       borderWidth: 2, borderDash: [6,4], spanGaps: true
     }
   ],
-  function(v){ return v + 'kg'; },
+  function(v){ return parseFloat(v).toFixed(1) + 'kg'; },
   [
     { text: '実績体重', fillStyle: '#D4537E' },
     { text: '目標体重', fillStyle: '#378ADD' }
