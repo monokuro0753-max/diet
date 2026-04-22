@@ -324,7 +324,10 @@ function out(t){ return ContentService.createTextOutput(t); }
 function outJson(o){
   return ContentService.createTextOutput(JSON.stringify(o))
     .setMimeType(ContentService.MimeType.JSON);
-}</pre>
+}
+// ※ GASのWebアプリはリダイレクトが発生するため、
+//    アプリ側で redirect:'follow' を指定して対応しています。
+// ※ デプロイ設定：実行するユーザー＝自分、アクセスできるユーザー＝全員</pre>
       <ul class="step-list">
         <li data-n="①">スプレッドシート → 拡張機能 → Apps Script</li>
         <li data-n="②">上記コードを貼り付けて保存（Ctrl+S）</li>
@@ -604,19 +607,39 @@ function loadGoal(dateNd) {
   }
   gc.innerHTML = '<div style="font-size:12px;color:#BBB;padding:4px 0;">読み込み中…</div>';
 
-  fetch(gasUrl + '?date=' + encodeURIComponent(dateNd))
+  var timeout = new Promise(function(_, rej) {
+    setTimeout(function() { rej(new Error('timeout')); }, 10000);
+  });
+  Promise.race([
+    fetch(gasUrl + '?date=' + encodeURIComponent(dateNd), {
+      method: 'GET',
+      redirect: 'follow'
+    }),
+    timeout
+  ])
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
+      return r.text();
     })
-    .then(function(g) { renderGoal(gc, g, dateNd); })
+    .then(function(text) {
+      try {
+        var g = JSON.parse(text);
+        renderGoal(gc, g, dateNd);
+      } catch(e) {
+        throw new Error('JSON parse error: ' + text.slice(0, 80));
+      }
+    })
     .catch(function(err) {
       console.error('loadGoal error:', err);
+      var msg = err.message || '';
+      var hint = msg === 'timeout'
+        ? 'リクエストがタイムアウトしました。GASのデプロイ状況を確認してください。'
+        : msg.indexOf('JSON') !== -1
+          ? 'GASのレスポンスが不正です: ' + msg
+          : 'fetch失敗。GASのURLとデプロイ設定（アクセス：全員）を確認してください。';
       gc.innerHTML =
-        '<div style="font-size:12px;color:#D4537E;line-height:1.7;padding:4px 0;">' +
-        '⚠️ 目標データを取得できませんでした。<br>' +
-        '確認事項：①URLが正しいか ②デプロイ設定で「アクセスできるユーザー」が<b>全員</b>になっているか ' +
-        '③スクリプトを更新後に<b>新しいデプロイ</b>をしているか</div>';
+        '<div style="font-size:12px;color:#D4537E;line-height:1.8;padding:4px 0;">' +
+        '⚠️ ' + hint + '</div>';
     });
 }
 
