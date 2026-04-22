@@ -279,15 +279,15 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
     </div>
     <div class="chart-card">
       <div class="chart-title">体重推移 (kg)</div>
-      <div class="chart-scroll"><canvas id="chart-weight" height="160"></canvas></div>
+      <div id="weight-container"></div>
     </div>
     <div class="chart-card">
       <div class="chart-title">カロリー収支（消費−摂取）</div>
-      <div class="chart-scroll"><canvas id="chart-cal" height="160"></canvas></div>
+      <div id="cal-container"></div>
     </div>
     <div class="chart-card">
       <div class="chart-title">歩数推移</div>
-      <div class="chart-scroll"><canvas id="chart-steps" height="140"></canvas></div>
+      <div id="steps-container"></div>
     </div>
   </div>
 
@@ -589,7 +589,7 @@ function renderGraphs() {
     var isDayDown = dayDiff !== null && parseFloat(dayDiff) < 0;
     var balance = (last.burned && last.intake) ? last.burned - last.intake : null;
     metricsEl.innerHTML =
-      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:#111;">'+(last.weight ? Math.round(last.weight*10)/10 : '—')+'<span style="font-size:11px;font-weight:400"> kg</span></div><div class="metric-lbl" style="color:#666;">最新体重</div></div>'+
+      '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:#111;">'+(last.weight||'—')+'<span style="font-size:11px;font-weight:400"> kg</span></div><div class="metric-lbl" style="color:#666;">最新体重</div></div>'+
       '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:'+(isDown?'#1D9E75':'#D4537E')+'">'+(totalDiff!==null?(isDown?'':'+') + totalDiff:'—')+'<span style="font-size:11px;font-weight:400;color:#666;"> kg</span></div><div class="metric-lbl" style="color:#666;">開始からの変化</div></div>'+
       '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:'+(isDayDown?'#1D9E75':'#D4537E')+'">'+(dayDiff!==null?(isDayDown?'':'+') + dayDiff:'—')+'<span style="font-size:11px;font-weight:400;color:#666;"> kg</span></div><div class="metric-lbl" style="color:#666;">前日比</div></div>'+
       '<div class="metric-card" style="background:#fff;border:1px solid #E0E0E0;"><div class="metric-val" style="color:'+(balance!==null&&balance>=0?'#1D9E75':'#D4537E')+'">'+(balance!==null?Math.round(balance).toLocaleString():'—')+'<span style="font-size:10px;font-weight:400;color:#666;"> kcal</span></div><div class="metric-lbl" style="color:#666;">消費余力</div></div>';
@@ -616,7 +616,7 @@ function renderGraphs() {
     if (calBal !== null) sh += '<div class="summary-row"><span class="summary-lbl">消費余力</span><span class="'+(calBal>=0?'diff-pos':'diff-neg')+'">'+(calBal>=0?'+':'')+calBal.toLocaleString()+' kcal</span></div>';
     if (todayLog.steps) {
       var pct = Math.min(Math.round(todayLog.steps/8000*100),100);
-      sh += '<div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><div style="display:flex;justify-content:space-between;width:100%;"><span class="summary-lbl">歩数</span><span class="summary-val">'+Math.round(todayLog.steps).toLocaleString()+' 歩 / 8,000歩目標</span></div><div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%;background:'+(todayLog.steps>=8000?'#378ADD':'#BA7517')+';"></div></div></div>';
+      sh += '<div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><div style="display:flex;justify-content:space-between;width:100%;"><span class="summary-lbl">歩数</span><span class="summary-val">'+Math.round(todayLog.steps).toLocaleString()+' 歩</span></div><div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%;background:'+(todayLog.steps>=8000?'#378ADD':'#BA7517')+';"></div></div></div>';
     }
     if (todayLog.training) sh += '<div class="summary-row"><span class="summary-lbl">トレーニング</span><span class="summary-val" style="font-size:12px;text-align:right;max-width:65%;">'+todayLog.training+'</span></div>';
     summaryContent.innerHTML = sh || '<div style="font-size:12px;color:#888;padding:4px 0;">今日の実績を入力してください</div>';
@@ -624,292 +624,155 @@ function renderGraphs() {
     summaryCard.style.display = 'none';
   }
 
-  // グラフ描画 - SVGベースの自作グラフ（Chart.jsの代わり）
-  drawWeightChart(recent, labels);
-  drawCalChart(recent, labels);
-  drawStepsChart(recent, labels);
-}
-
-function makeChartSVG(id, data, labels, opts) {
-  var wrap = document.getElementById(id).parentNode;
-  var existSvg = document.getElementById(id + '-svg');
-  if (existSvg) existSvg.remove();
-
-  var W = Math.max(labels.length * 44, 320);
-  var H = 200;
-  var pad = { top: 20, right: 16, bottom: 36, left: 58 };
-  var iW = W - pad.left - pad.right;
-  var iH = H - pad.top - pad.bottom;
-
-  var allVals = data.map(function(d){ return d.value; }).filter(function(v){ return v !== null; });
-  if (opts.min !== undefined) allVals.push(opts.min);
-  if (opts.max !== undefined) allVals.push(opts.max);
-  var vMin = allVals.length ? Math.min.apply(null, allVals) : 0;
-  var vMax = allVals.length ? Math.max.apply(null, allVals) : 1;
-  var vRange = vMax - vMin || 1;
-  var pad2 = vRange * 0.15;
-  var yMin = vMin - pad2;
-  var yMax = vMax + pad2;
-  var yRange = yMax - yMin;
-
-  function xPos(i) { return pad.left + (i / Math.max(labels.length - 1, 1)) * iW; }
-  function yPos(v) { return pad.top + (1 - (v - yMin) / yRange) * iH; }
-
-  // Y軸目盛り
-  var tickCount = 4;
-  var tickStep = yRange / tickCount;
-  var ticks = [];
-  for (var t = 0; t <= tickCount; t++) {
-    ticks.push(yMin + t * tickStep);
-  }
-
-  var svg = '<svg id="'+id+'-svg" width="'+W+'" height="'+H+'" style="display:block;background:#fff;" xmlns="http://www.w3.org/2000/svg">';
-
-  // 白背景
-  svg += '<rect width="'+W+'" height="'+H+'" fill="#fff"/>';
-
-  // グリッド線と目盛りラベル
-  ticks.forEach(function(v) {
-    var y = Math.round(yPos(v));
-    svg += '<line x1="'+pad.left+'" y1="'+y+'" x2="'+(W-pad.right)+'" y2="'+y+'" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>';
-    var label = opts.tickFmt ? opts.tickFmt(v) : Math.round(v).toLocaleString();
-    svg += '<text x="'+(pad.left-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="12" font-family="Arial,sans-serif" fill="#333">'+label+'</text>';
-  });
-
-  // X軸ラベル
-  var skipX = Math.ceil(labels.length / 7);
-  labels.forEach(function(lbl, i) {
-    if (i % skipX !== 0 && i !== labels.length - 1) return;
-    var x = Math.round(xPos(i));
-    svg += '<text x="'+x+'" y="'+(H-6)+'" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#333">'+lbl+'</text>';
-  });
-
-  // データ描画
-  data.forEach(function(series) {
-    if (!series.value && series.value !== 0) return;
-    var points = series.values || [series];
-    // ラインチャート
-    if (series.type === 'line' || opts.type === 'line') {
-      var pathD = '';
-      var areaD = '';
-      var first = true;
-      points.forEach(function(p, i) {
-        if (p.value === null || p.value === undefined) { first = true; return; }
-        var x = Math.round(xPos(i));
-        var y = Math.round(yPos(p.value));
-        if (first) { pathD += 'M'+x+','+y; areaD += 'M'+x+','+(pad.top+iH)+' L'+x+','+y; first = false; }
-        else { pathD += ' L'+x+','+y; areaD += ' L'+x+','+y; }
-      });
-      if (series.fill) {
-        areaD += ' L'+Math.round(xPos(points.length-1))+','+(pad.top+iH)+' Z';
-        svg += '<path d="'+areaD+'" fill="'+series.fill+'" opacity="0.12"/>';
-      }
-      if (pathD) svg += '<path d="'+pathD+'" fill="none" stroke="'+series.color+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"'+(series.dash?' stroke-dasharray="'+series.dash+'"':'')+'/>';
-      points.forEach(function(p, i) {
-        if (p.value === null || p.value === undefined) return;
-        svg += '<circle cx="'+Math.round(xPos(i))+'" cy="'+Math.round(yPos(p.value))+'" r="4" fill="#fff" stroke="'+series.color+'" stroke-width="2"/>';
-      });
-    }
-    // 棒グラフ
-    if (opts.type === 'bar') {
-      var bW = Math.max(Math.floor(iW / labels.length * 0.6), 4);
-      points.forEach(function(p, i) {
-        if (p.value === null || p.value === undefined) return;
-        var x = Math.round(xPos(i));
-        var y0 = Math.round(yPos(0));
-        var y1 = Math.round(yPos(p.value));
-        var barH = Math.abs(y0 - y1);
-        var barY = Math.min(y0, y1);
-        svg += '<rect x="'+(x-bW/2)+'" y="'+barY+'" width="'+bW+'" height="'+barH+'" rx="3" fill="'+p.color+'"/>';
-      });
-    }
-  });
-
-  svg += '</svg>';
-
-  var canvas = document.getElementById(id);
-  canvas.style.display = 'none';
-  var div = document.createElement('div');
-  div.style.minWidth = W + 'px';
-  div.innerHTML = svg;
-  canvas.parentNode.appendChild(div);
-}
-
-function drawWeightChart(recent, labels) {
-  makeChartSVG('chart-weight', [
-    { type:'line', color:'#D4537E', fill:'#D4537E',
-      values: recent.map(function(l){ return {value: l.weight ? Math.round(l.weight*10)/10 : null}; }) },
-    { type:'line', color:'#378ADD', dash:'6,4',
-      values: recent.map(function(l){ return {value: l.targetWeight ? Math.round(l.targetWeight*10)/10 : null}; }) }
-  ], labels, {
+  // SVGグラフ描画
+  drawSvgChart('weight-container', recent, labels, {
     type: 'line',
-    tickFmt: function(v){ return parseFloat(v).toFixed(1)+'kg'; }
+    legend: [{color:'#D4537E',label:'実績体重'},{color:'#378ADD',label:'目標体重',dash:'6,4'}],
+    series: [
+      { color:'#D4537E', fill:'rgba(212,83,126,0.1)',
+        values: recent.map(function(l){ return l.weight ? Math.round(l.weight*10)/10 : null; }) },
+      { color:'#378ADD', dash:'6,4',
+        values: recent.map(function(l){ return l.targetWeight ? Math.round(l.targetWeight*10)/10 : null; }) }
+    ],
+    yFmt: function(v){ return parseFloat(v).toFixed(1)+'kg'; },
+    yPadRatio: 0.15
   });
-
-  // 凡例
-  var wrap = document.getElementById('chart-weight').parentNode;
-  var existLeg = wrap.querySelector('.custom-legend');
-  if (!existLeg) {
-    var leg = document.createElement('div');
-    leg.className = 'custom-legend';
-    leg.style.cssText = 'display:flex;gap:14px;padding:4px 0 8px 58px;';
-    leg.innerHTML =
-      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#D4537E;border-radius:3px;"></span>実績体重</span>'+
-      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#378ADD;border-radius:3px;"></span>目標体重</span>';
-    wrap.insertBefore(leg, wrap.querySelector('[id$="-svg"]') || wrap.firstChild);
-  }
-}
-
-function drawCalChart(recent, labels) {
-  makeChartSVG('chart-cal', [{}], labels, {
-    type: 'bar',
-    tickFmt: function(v){ return Math.round(v).toLocaleString()+'kcal'; }
-  });
-  // 手動で棒グラフ再描画（色分けのため）
-  var existSvg = document.getElementById('chart-cal-svg');
-  if (existSvg) existSvg.remove();
 
   var calVals = recent.map(function(l){
     return (l.burned && l.intake) ? Math.round(l.burned - l.intake) : null;
   });
-  var allV = calVals.filter(function(v){return v!==null;});
-  var vMin = allV.length ? Math.min.apply(null, allV) : -500;
-  var vMax = allV.length ? Math.max.apply(null, allV) : 500;
-  var vRange = Math.max(vMax - vMin, 100);
-  var pad2 = vRange * 0.15;
-  var yMin = vMin - pad2;
-  var yMax = vMax + pad2;
-  var yRange = yMax - yMin;
+  drawSvgChart('cal-container', recent, labels, {
+    type: 'bar',
+    legend: [{color:'#1D9E75',label:'黒字（余力あり）'},{color:'#D4537E',label:'赤字（超過）'}],
+    series: [{
+      values: calVals,
+      colors: calVals.map(function(v){ return v===null?'#ccc':(v>=0?'#1D9E75':'#D4537E'); })
+    }],
+    yFmt: function(v){ return Math.round(v).toLocaleString()+'kcal'; },
+    yPadRatio: 0.15,
+    hasZero: true
+  });
 
-  var W = Math.max(recent.length * 44, 320);
+  var stepsVals = recent.map(function(l){ return l.steps ? Math.round(l.steps) : null; });
+  drawSvgChart('steps-container', recent, labels, {
+    type: 'bar',
+    legend: [{color:'#378ADD',label:'8,000歩以上'},{color:'#BA7517',label:'8,000歩未満'}],
+    series: [{
+      values: stepsVals,
+      colors: stepsVals.map(function(v){ return !v?'#ccc':(v>=8000?'#378ADD':'#BA7517'); })
+    }],
+    yFmt: function(v){ return Math.round(v).toLocaleString()+'歩'; },
+    yPadRatio: 0.15,
+    yMin: 0
+  });
+}
+
+function drawSvgChart(containerId, recent, labels, opts) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  var n = labels.length;
+  var W = Math.max(n * 44, 320);
   var H = 200;
-  var pad = {top:20,right:16,bottom:36,left:70};
+  var pad = {top:16, right:16, bottom:32, left:72};
   var iW = W - pad.left - pad.right;
   var iH = H - pad.top - pad.bottom;
 
-  function xPos(i){ return pad.left + (i+0.5) * (iW/recent.length); }
-  function yPos(v){ return pad.top + (1-(v-yMin)/yRange)*iH; }
-
-  var tickCount = 4;
-  var ticks = [];
-  for(var t=0;t<=tickCount;t++) ticks.push(yMin + t*(yRange/tickCount));
-
-  var svg = '<svg id="chart-cal-svg" width="'+W+'" height="'+H+'" style="display:block;background:#fff;" xmlns="http://www.w3.org/2000/svg">';
-  svg += '<rect width="'+W+'" height="'+H+'" fill="#fff"/>';
-
-  ticks.forEach(function(v){
-    var y = Math.round(yPos(v));
-    svg += '<line x1="'+pad.left+'" y1="'+y+'" x2="'+(W-pad.right)+'" y2="'+y+'" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>';
-    svg += '<text x="'+(pad.left-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="12" font-family="Arial,sans-serif" fill="#333">'+Math.round(v).toLocaleString()+'kcal</text>';
+  // 全値収集
+  var allVals = [];
+  opts.series.forEach(function(s){
+    s.values.forEach(function(v){ if(v!==null && v!==undefined) allVals.push(v); });
   });
-
-  var skipX = Math.ceil(recent.length/7);
-  labels.forEach(function(lbl,i){
-    if(i%skipX!==0 && i!==labels.length-1) return;
-    svg += '<text x="'+Math.round(xPos(i))+'" y="'+(H-6)+'" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#333">'+lbl+'</text>';
-  });
-
-  var bW = Math.max(Math.floor(iW/recent.length*0.6), 4);
-  calVals.forEach(function(v,i){
-    if(v===null) return;
-    var x = Math.round(xPos(i));
-    var y0 = Math.round(yPos(0));
-    var y1 = Math.round(yPos(v));
-    var barH = Math.abs(y0-y1);
-    var barY = Math.min(y0,y1);
-    var color = v>=0 ? '#1D9E75' : '#D4537E';
-    svg += '<rect x="'+(x-bW/2)+'" y="'+barY+'" width="'+bW+'" height="'+barH+'" rx="3" fill="'+color+'"/>';
-  });
-  svg += '</svg>';
-
-  var canvas = document.getElementById('chart-cal');
-  canvas.style.display = 'none';
-  var div = document.createElement('div');
-  div.style.minWidth = W+'px';
-  div.innerHTML = svg;
-  canvas.parentNode.appendChild(div);
-
-  var wrap = canvas.parentNode;
-  var existLeg = wrap.querySelector('.custom-legend');
-  if(!existLeg){
-    var leg = document.createElement('div');
-    leg.className = 'custom-legend';
-    leg.style.cssText = 'display:flex;gap:14px;padding:4px 0 8px 70px;';
-    leg.innerHTML =
-      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#1D9E75;border-radius:3px;"></span>黒字（余力あり）</span>'+
-      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#D4537E;border-radius:3px;"></span>赤字（超過）</span>';
-    wrap.insertBefore(leg, div);
-  }
-}
-
-function drawStepsChart(recent, labels) {
-  var stepsVals = recent.map(function(l){ return l.steps ? Math.round(l.steps) : null; });
-  var allV = stepsVals.filter(function(v){return v!==null;});
-  var vMax = allV.length ? Math.max.apply(null, allV) : 10000;
-  var yMin = 0;
-  var yMax = vMax * 1.2;
+  if(opts.hasZero) allVals.push(0);
+  if(opts.yMin !== undefined) allVals.push(opts.yMin);
+  var vMin = allVals.length ? Math.min.apply(null, allVals) : 0;
+  var vMax = allVals.length ? Math.max.apply(null, allVals) : 1;
+  var vRange = vMax - vMin || 1;
+  var pad2 = vRange * (opts.yPadRatio || 0.15);
+  var yMin = opts.yMin !== undefined ? opts.yMin : vMin - pad2;
+  var yMax = vMax + pad2;
   var yRange = yMax - yMin;
 
-  var existSvg = document.getElementById('chart-steps-svg');
-  if(existSvg) existSvg.remove();
+  function xLine(i){ return pad.left + (i / Math.max(n-1,1)) * iW; }
+  function xBar(i){ return pad.left + (i+0.5) * (iW/n); }
+  function yPos(v){ return pad.top + (1-(v-yMin)/yRange)*iH; }
 
-  var W = Math.max(recent.length*44, 320);
-  var H = 200;
-  var pad = {top:20,right:16,bottom:36,left:70};
-  var iW = W-pad.left-pad.right;
-  var iH = H-pad.top-pad.bottom;
-
-  function xPos(i){ return pad.left+(i+0.5)*(iW/recent.length); }
-  function yPos(v){ return pad.top+(1-v/yRange)*iH; }
-
+  // Y軸目盛り
   var tickCount = 4;
   var ticks = [];
-  for(var t=0;t<=tickCount;t++) ticks.push(yMin+t*(yRange/tickCount));
+  for(var t=0; t<=tickCount; t++) ticks.push(yMin + t*(yRange/tickCount));
 
-  var svg = '<svg id="chart-steps-svg" width="'+W+'" height="'+H+'" style="display:block;background:#fff;" xmlns="http://www.w3.org/2000/svg">';
-  svg += '<rect width="'+W+'" height="'+H+'" fill="#fff"/>';
+  var svgParts = [];
+  svgParts.push('<svg width="'+W+'" height="'+H+'" xmlns="http://www.w3.org/2000/svg" style="display:block;background:#fff;">');
+  svgParts.push('<rect width="'+W+'" height="'+H+'" fill="#fff"/>');
 
+  // グリッド線と目盛り
   ticks.forEach(function(v){
     var y = Math.round(yPos(v));
-    svg += '<line x1="'+pad.left+'" y1="'+y+'" x2="'+(W-pad.right)+'" y2="'+y+'" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>';
-    svg += '<text x="'+(pad.left-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="12" font-family="Arial,sans-serif" fill="#333">'+Math.round(v).toLocaleString()+'歩</text>';
+    svgParts.push('<line x1="'+pad.left+'" y1="'+y+'" x2="'+(W-pad.right)+'" y2="'+y+'" stroke="#EEEEEE" stroke-width="1"/>');
+    var lbl = opts.yFmt ? opts.yFmt(v) : Math.round(v).toLocaleString();
+    svgParts.push('<text x="'+(pad.left-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="12" font-family="Arial,Helvetica,sans-serif" fill="#333333">'+lbl+'</text>');
   });
 
-  var skipX = Math.ceil(recent.length/7);
+  // X軸ラベル
+  var skip = Math.ceil(n/7);
   labels.forEach(function(lbl,i){
-    if(i%skipX!==0 && i!==labels.length-1) return;
-    svg += '<text x="'+Math.round(xPos(i))+'" y="'+(H-6)+'" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="#333">'+lbl+'</text>';
+    if(i%skip!==0 && i!==n-1) return;
+    var x = opts.type==='bar' ? Math.round(xBar(i)) : Math.round(xLine(i));
+    svgParts.push('<text x="'+x+'" y="'+(H-6)+'" text-anchor="middle" font-size="12" font-family="Arial,Helvetica,sans-serif" fill="#333333">'+lbl+'</text>');
   });
 
-  var bW = Math.max(Math.floor(iW/recent.length*0.6), 4);
-  stepsVals.forEach(function(v,i){
-    if(v===null) return;
-    var x = Math.round(xPos(i));
-    var y0 = Math.round(yPos(0));
-    var y1 = Math.round(yPos(v));
-    var color = v>=8000 ? '#378ADD' : '#BA7517';
-    svg += '<rect x="'+(x-bW/2)+'" y="'+y1+'" width="'+bW+'" height="'+(y0-y1)+'" rx="3" fill="'+color+'"/>';
-  });
-  svg += '</svg>';
-
-  var canvas = document.getElementById('chart-steps');
-  canvas.style.display = 'none';
-  var div = document.createElement('div');
-  div.style.minWidth = W+'px';
-  div.innerHTML = svg;
-  canvas.parentNode.appendChild(div);
-
-  var wrap = canvas.parentNode;
-  var existLeg = wrap.querySelector('.custom-legend');
-  if(!existLeg){
-    var leg = document.createElement('div');
-    leg.className = 'custom-legend';
-    leg.style.cssText = 'display:flex;gap:14px;padding:4px 0 8px 70px;';
-    leg.innerHTML =
-      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#378ADD;border-radius:3px;"></span>8,000歩以上</span>'+
-      '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;"><span style="display:inline-block;width:14px;height:14px;background:#BA7517;border-radius:3px;"></span>8,000歩未満</span>';
-    wrap.insertBefore(leg, div);
+  if(opts.type==='line') {
+    opts.series.forEach(function(s){
+      var pathD = '', areaD = '', first = true, lastX, lastY;
+      s.values.forEach(function(v,i){
+        if(v===null||v===undefined){ first=true; return; }
+        var x=Math.round(xLine(i)), y=Math.round(yPos(v));
+        if(first){ pathD+='M'+x+','+y; areaD+='M'+x+','+(pad.top+iH)+' L'+x+','+y; first=false; }
+        else{ pathD+=' L'+x+','+y; areaD+=' L'+x+','+y; }
+        lastX=x; lastY=y;
+      });
+      if(s.fill && areaD){
+        areaD+=' L'+lastX+','+(pad.top+iH)+' Z';
+        svgParts.push('<path d="'+areaD+'" fill="'+s.fill+'"/>');
+      }
+      if(pathD) svgParts.push('<path d="'+pathD+'" fill="none" stroke="'+s.color+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"'+(s.dash?' stroke-dasharray="'+s.dash+'"':'')+'/>' );
+      s.values.forEach(function(v,i){
+        if(v===null||v===undefined) return;
+        svgParts.push('<circle cx="'+Math.round(xLine(i))+'" cy="'+Math.round(yPos(v))+'" r="4" fill="#fff" stroke="'+s.color+'" stroke-width="2"/>');
+      });
+    });
   }
+
+  if(opts.type==='bar') {
+    var bW = Math.max(Math.floor(iW/n*0.55), 4);
+    var s = opts.series[0];
+    s.values.forEach(function(v,i){
+      if(v===null||v===undefined) return;
+      var x=Math.round(xBar(i));
+      var y0=Math.round(yPos(0)), y1=Math.round(yPos(v));
+      var barH=Math.abs(y0-y1), barY=Math.min(y0,y1);
+      var col=s.colors ? s.colors[i] : s.color;
+      svgParts.push('<rect x="'+(x-bW/2)+'" y="'+barY+'" width="'+bW+'" height="'+barH+'" rx="3" fill="'+col+'"/>');
+    });
+  }
+
+  svgParts.push('</svg>');
+
+  // 凡例HTML
+  var legHtml = '<div style="display:flex;flex-wrap:wrap;gap:12px;padding:6px 0 10px '+pad.left+'px;">';
+  opts.legend.forEach(function(l){
+    legHtml += '<span style="display:flex;align-items:center;gap:5px;font-size:13px;color:#222;font-family:Arial,sans-serif;">'+
+      '<span style="display:inline-block;width:14px;height:14px;background:'+l.color+';border-radius:3px;flex-shrink:0;"></span>'+l.label+'</span>';
+  });
+  legHtml += '</div>';
+
+  var scrollDiv = document.createElement('div');
+  scrollDiv.style.cssText = 'overflow-x:auto;-webkit-overflow-scrolling:touch;';
+  scrollDiv.innerHTML = svgParts.join('');
+  container.innerHTML = legHtml;
+  container.appendChild(scrollDiv);
 }
 
 function renderLog() {
