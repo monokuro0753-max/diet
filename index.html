@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -571,10 +572,12 @@ async function fetchGoal(dateVal) {
 }
 
 function renderGraphs() {
-  var recent = logs.slice(-20);
+  var recent = logs.slice(-60);
   var labels = recent.map(function(l){
     var p = l.date.split('/');
-    return p[1]+'/'+p[2];
+    if (p.length === 3) return p[1]+'/'+p[2];   // 2026/4/20
+    if (p.length === 2) return p[0]+'/'+p[1];   // 4/20
+    return l.date;
   });
 
   // メトリクスカード
@@ -699,9 +702,29 @@ function drawSvgChart(containerId, recent, labels, opts) {
   function yPos(v){ return pad.top + (1-(v-yMin)/yRange)*iH; }
 
   // Y軸目盛り
+  // データ範囲が狭い場合は最小幅を確保（体重グラフ用）
+  if (yRange < 0.8 && opts.yFmt && opts.yFmt(0).indexOf('kg') !== -1) {
+    var center = (yMin + yMax) / 2;
+    yMin = center - 0.5;
+    yMax = center + 0.5;
+    yRange = 1.0;
+  }
   var tickCount = 4;
+  var tickStep = yRange / tickCount;
+  // 目盛り値を綺麗な数値に丸める
+  var niceStep = Math.pow(10, Math.floor(Math.log(tickStep) / Math.LN10));
+  if (tickStep / niceStep >= 5) niceStep *= 5;
+  else if (tickStep / niceStep >= 2) niceStep *= 2;
+  var niceMin = Math.floor(yMin / niceStep) * niceStep;
   var ticks = [];
-  for(var t=0; t<=tickCount; t++) ticks.push(yMin + t*(yRange/tickCount));
+  var tv = niceMin;
+  while (tv <= yMax + niceStep * 0.01) {
+    if (tv >= yMin - niceStep * 0.01) ticks.push(Math.round(tv * 1000) / 1000);
+    tv = Math.round((tv + niceStep) * 1000) / 1000;
+    if (ticks.length > 6) break;
+  }
+  // 重複除去
+  ticks = ticks.filter(function(v, i, a) { return a.indexOf(v) === i; });
 
   var svgParts = [];
   svgParts.push('<svg width="'+W+'" height="'+H+'" xmlns="http://www.w3.org/2000/svg" style="display:block;background:#fff;">');
@@ -716,7 +739,7 @@ function drawSvgChart(containerId, recent, labels, opts) {
   });
 
   // X軸ラベル
-  var skip = Math.ceil(n/7);
+  var skip = Math.ceil(n/8);
   labels.forEach(function(lbl,i){
     if(i%skip!==0 && i!==n-1) return;
     var x = opts.type==='bar' ? Math.round(xBar(i)) : Math.round(xLine(i));
