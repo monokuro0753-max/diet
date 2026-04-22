@@ -261,8 +261,7 @@ textarea { height: 56px; resize: none; line-height: 1.5; }
 
     <div id="goal-card" style="background:#FFFFFF;border-radius:16px;border:1px solid #E0E0E0;padding:16px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <span style="font-size:11px;font-weight:700;color:#444;letter-spacing:0.06em;text-transform:uppercase;">今日の目標</span>
-        <span>今日の目標</span>
+        <span style="font-size:12px;font-weight:700;color:#333;letter-spacing:0.05em;text-transform:uppercase;">今日の目標</span>
         <span id="goal-date-label" style="font-size:11px;color:#666;font-weight:400;"></span>
       </div>
       <div id="goal-content"><div style="font-size:12px;color:#666;padding:6px 0;">連携タブでURLを設定すると目標が表示されます</div></div>
@@ -545,22 +544,22 @@ async function fetchGoal(dateVal) {
 
     // 摂取
     html += '<div class="progress-row">';
-    html += '<span class="progress-lbl">摂取</span>';
+    html += '<span style="font-size:12px;color:#555;width:40px;flex-shrink:0;">摂取</span>';
     html += '<div class="progress-vals">';
-    html += '<div style="display:flex;justify-content:space-between;font-size:12px;">';
-    html += '<span>'+(actualIntake ? Math.round(actualIntake).toLocaleString() : '未入力')+' / '+(g.targetIntake ? Math.round(g.targetIntake).toLocaleString() : '—')+' kcal</span>';
-    if (intakeDiff !== null) html += '<span class="'+(intakeDiff<=0?'diff-good':'diff-bad')+'">'+(intakeDiff<=0?'':'+') + Math.round(intakeDiff).toLocaleString()+'</span>';
+    html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:#222;">';
+    html += '<span style="color:#222;font-weight:500;">'+(actualIntake ? Math.round(actualIntake).toLocaleString() : '未入力')+' <span style="color:#888;font-weight:400;">/ '+(g.targetIntake ? Math.round(g.targetIntake).toLocaleString() : '—')+' kcal</span></span>';
+    if (intakeDiff !== null) html += '<span style="font-weight:700;font-size:13px;color:'+(intakeDiff<=0?'#1D9E75':'#D4537E')+'">'+(intakeDiff<=0?'':'+') + Math.round(intakeDiff).toLocaleString()+'</span>';
     html += '</div>';
     html += '<div class="progress-bar-wrap"><div class="progress-bar" style="width:'+intakePct+'%;background:'+intakeColor+';"></div></div>';
     html += '</div></div>';
 
     // 消費
     html += '<div class="progress-row">';
-    html += '<span class="progress-lbl">消費</span>';
+    html += '<span style="font-size:12px;color:#555;width:40px;flex-shrink:0;">消費</span>';
     html += '<div class="progress-vals">';
-    html += '<div style="display:flex;justify-content:space-between;font-size:12px;">';
-    html += '<span>'+(actualBurned ? Math.round(actualBurned).toLocaleString() : '未入力')+' / '+(g.targetBurned ? Math.round(g.targetBurned).toLocaleString() : '—')+' kcal</span>';
-    if (burnedDiff !== null) html += '<span class="'+(burnedDiff>=0?'diff-good':'diff-bad')+'">'+(burnedDiff>=0?'+':'') + Math.round(burnedDiff).toLocaleString()+'</span>';
+    html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:#222;">';
+    html += '<span style="color:#222;font-weight:500;">'+(actualBurned ? Math.round(actualBurned).toLocaleString() : '未入力')+' <span style="color:#888;font-weight:400;">/ '+(g.targetBurned ? Math.round(g.targetBurned).toLocaleString() : '—')+' kcal</span></span>';
+    if (burnedDiff !== null) html += '<span style="font-weight:700;font-size:13px;color:'+(burnedDiff>=0?'#1D9E75':'#D4537E')+'">'+(burnedDiff>=0?'+':'') + Math.round(burnedDiff).toLocaleString()+'</span>';
     html += '</div>';
     html += '<div class="progress-bar-wrap"><div class="progress-bar" style="width:'+burnedPct+'%;background:'+burnedColor+';"></div></div>';
     html += '</div></div>';
