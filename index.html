@@ -355,14 +355,10 @@ function outJson(o){
 
     <!-- 過去データ一括インポート -->
     <div class="card">
-      <div class="card-title">過去データ 一括インポート</div>
-      <p class="note">GASの exportAllData() で出力したJSONをここに貼り付けて「インポート」を押してください。既存データと重複する日付はマージされます。</p>
-      <div class="field">
-        <label>JSONを貼り付け</label>
-        <textarea id="import-json" style="height:120px;font-size:11px;font-family:monospace;" placeholder='[{"date":"2026/1/5",...}]'></textarea>
-      </div>
-      <button class="save-btn" style="margin-top:8px;" onclick="importData()">インポートする</button>
-      <div id="import-status" style="font-size:12px;margin-top:8px;"></div>
+      <div class="card-title">過去データ 一括取得</div>
+      <p class="note">上のURLを設定した状態で「取得する」を押すと、スプレッドシートの1/5以降のデータをすべて自動でインポートします。</p>
+      <button class="save-btn" onclick="importFromGas()">スプシから過去データを取得する</button>
+      <div id="import-status" style="font-size:12px;margin-top:10px;line-height:1.7;"></div>
     </div>
   </div>
 
@@ -1030,46 +1026,49 @@ function saveGasUrl() {
 }
 
 // ================================================================
-// 過去データ一括インポート
+// 過去データ一括取得（GASから直接）
 // ================================================================
-function importData() {
-  var raw = document.getElementById('import-json').value.trim();
+function importFromGas() {
   var statusEl = document.getElementById('import-status');
-  if (!raw) {
+  if (!gasUrl) {
     statusEl.style.color = '#D4537E';
-    statusEl.textContent = '⚠️ JSONを貼り付けてください';
+    statusEl.textContent = '⚠️ 先にApps Script URLを設定してください';
     return;
   }
+  statusEl.style.color = '#888';
+  statusEl.textContent = '取得中…しばらくお待ちください';
 
-  var arr;
-  try {
-    arr = JSON.parse(raw);
-  } catch(e) {
-    statusEl.style.color = '#D4537E';
-    statusEl.textContent = '⚠️ JSONの形式が正しくありません: ' + e.message;
-    return;
-  }
-
-  if (!Array.isArray(arr)) {
-    statusEl.style.color = '#D4537E';
-    statusEl.textContent = '⚠️ 配列形式のJSONが必要です';
-    return;
-  }
-
-  var count = 0, skip = 0;
-  arr.forEach(function(row) {
-    if (!row.date) { skip++; return; }
-    // 日付を正規化
-    row.date = nd(row.date);
-    if (!row.date) { skip++; return; }
-    upsertLog(row);
-    count++;
+  var timeout = new Promise(function(_, rej) {
+    setTimeout(function() { rej(new Error('timeout')); }, 30000);
   });
 
-  statusEl.style.color = '#1D9E75';
-  statusEl.textContent = '✓ ' + count + '件インポート完了（スキップ: ' + skip + '件）';
-  document.getElementById('import-json').value = '';
-  toast(count + '件のデータをインポートしました ✓');
+  Promise.race([
+    fetch(gasUrl + '?action=export', { method: 'GET', redirect: 'follow' }),
+    timeout
+  ])
+    .then(function(r) { return r.text(); })
+    .then(function(text) {
+      var g;
+      try { g = JSON.parse(text); } catch(e) { throw new Error('JSONパースエラー'); }
+      if (!g.logs || !Array.isArray(g.logs)) throw new Error('データ形式が不正です');
+
+      var count = 0, skip = 0;
+      g.logs.forEach(function(row) {
+        if (!row.date) { skip++; return; }
+        row.date = nd(row.date);
+        if (!row.date) { skip++; return; }
+        upsertLog(row);
+        count++;
+      });
+
+      statusEl.style.color = '#1D9E75';
+      statusEl.textContent = '✓ ' + count + '件取得・保存完了（スキップ: ' + skip + '件）';
+      toast(count + '件のデータをインポートしました ✓');
+    })
+    .catch(function(err) {
+      statusEl.style.color = '#D4537E';
+      statusEl.textContent = '⚠️ 取得失敗: ' + (err.message || err);
+    });
 }
 </script>
 </body>
