@@ -352,6 +352,18 @@ function outJson(o){
       </div>
       <div id="gas-status" style="font-size:12px;color:#1D9E75;margin-top:6px;"></div>
     </div>
+
+    <!-- 過去データ一括インポート -->
+    <div class="card">
+      <div class="card-title">過去データ 一括インポート</div>
+      <p class="note">GASの exportAllData() で出力したJSONをここに貼り付けて「インポート」を押してください。既存データと重複する日付はマージされます。</p>
+      <div class="field">
+        <label>JSONを貼り付け</label>
+        <textarea id="import-json" style="height:120px;font-size:11px;font-family:monospace;" placeholder='[{"date":"2026/1/5",...}]'></textarea>
+      </div>
+      <button class="save-btn" style="margin-top:8px;" onclick="importData()">インポートする</button>
+      <div id="import-status" style="font-size:12px;margin-top:8px;"></div>
+    </div>
   </div>
 
 </div><!-- /scroll -->
@@ -1015,6 +1027,49 @@ function saveGasUrl() {
   gasUrl = document.getElementById('gas-url').value.trim();
   localStorage.setItem('gasUrl', gasUrl);
   document.getElementById('gas-status').textContent = gasUrl ? 'URL 設定済み ✓' : '';
+}
+
+// ================================================================
+// 過去データ一括インポート
+// ================================================================
+function importData() {
+  var raw = document.getElementById('import-json').value.trim();
+  var statusEl = document.getElementById('import-status');
+  if (!raw) {
+    statusEl.style.color = '#D4537E';
+    statusEl.textContent = '⚠️ JSONを貼り付けてください';
+    return;
+  }
+
+  var arr;
+  try {
+    arr = JSON.parse(raw);
+  } catch(e) {
+    statusEl.style.color = '#D4537E';
+    statusEl.textContent = '⚠️ JSONの形式が正しくありません: ' + e.message;
+    return;
+  }
+
+  if (!Array.isArray(arr)) {
+    statusEl.style.color = '#D4537E';
+    statusEl.textContent = '⚠️ 配列形式のJSONが必要です';
+    return;
+  }
+
+  var count = 0, skip = 0;
+  arr.forEach(function(row) {
+    if (!row.date) { skip++; return; }
+    // 日付を正規化
+    row.date = nd(row.date);
+    if (!row.date) { skip++; return; }
+    upsertLog(row);
+    count++;
+  });
+
+  statusEl.style.color = '#1D9E75';
+  statusEl.textContent = '✓ ' + count + '件インポート完了（スキップ: ' + skip + '件）';
+  document.getElementById('import-json').value = '';
+  toast(count + '件のデータをインポートしました ✓');
 }
 </script>
 </body>
