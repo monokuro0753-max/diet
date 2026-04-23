@@ -235,22 +235,6 @@ textarea{height:54px;resize:none;line-height:1.5;}
       <button class="apply-btn" onclick="applyTotal()">この合計を摂取 kcal に反映 →</button>
     </div>
 
-    <!-- AI写真解析 -->
-    <div class="card" id="ai-meal-card">
-      <div class="card-title">📷 AI カロリー解析</div>
-      <p class="note" style="margin-bottom:10px;">食事の写真を選択するとAIがカロリーを推定して自動入力します。</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-        <button class="ai-meal-btn" onclick="triggerPhoto('breakfast')">朝食を撮影</button>
-        <button class="ai-meal-btn" onclick="triggerPhoto('lunch')">昼食を撮影</button>
-        <button class="ai-meal-btn" onclick="triggerPhoto('dinner')">夕食を撮影</button>
-      </div>
-      <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="analyzePhoto(this)">
-      <div id="ai-preview" style="display:none;margin-bottom:10px;">
-        <img id="ai-img" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover;">
-      </div>
-      <div id="ai-status" style="font-size:12px;line-height:1.8;color:#888;"></div>
-    </div>
-
     <!-- トレーニング -->
     <div class="card">
       <div class="card-title">トレーニング・サウナ</div>
@@ -1176,11 +1160,16 @@ function analyzePhoto(meal) {
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
+      // レスポンス検証
+      if (!data.candidates || !data.candidates[0]) {
+        var errMsg = data.error ? data.error.message : 'レスポンスが空です';
+        throw new Error(errMsg);
+      }
       var text = data.candidates[0].content.parts[0].text.trim();
-      // JSON部分を抽出
-      var m = text.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error('JSONが見つかりません');
-      var result = JSON.parse(m[0]);
+      // JSON部分を抽出（```json ... ``` も対応）
+      var jsonMatch = text.match(/\{[\s\S]*?\}/);
+      if (!jsonMatch) throw new Error('JSONが取得できませんでした: ' + text.slice(0,50));
+      var result = JSON.parse(jsonMatch[0]);
 
       // フォームに反映
       var mealMap = { b: ['f-breakfast','f-cal-b'], l: ['f-lunch','f-cal-l'], d: ['f-dinner','f-cal-d'] };
