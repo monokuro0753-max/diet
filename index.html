@@ -916,7 +916,7 @@ function drawChart(cid, lid, labels, opts) {
   var ticks = niceTicks(yMin, yMax);
 
   var n   = labels.length;
-  var W   = Math.max(n * 44, 320);
+  var W   = Math.max(n * 28, 320);
   var H   = 200;
   var pad = { t:14, r:14, b:30, l:70 };
   var iW  = W - pad.l - pad.r;
@@ -938,12 +938,10 @@ function drawChart(cid, lid, labels, opts) {
     svg.push('<text x="'+(pad.l-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" font-family="Arial,sans-serif" fill="#888">'+lbl+'</text>');
   });
 
-  // X 軸ラベル（7日おきに表示）
-  var skip = Math.max(1, Math.ceil(n/14));
+  // X 軸ラベル（毎日表示）
   labels.forEach(function(lbl, i) {
-    if (i % skip !== 0 && i !== n-1) return;
     var x = opts.type==='bar' ? Math.round(xB(i)) : Math.round(xL(i));
-    svg.push('<text x="'+x+'" y="'+(H-5)+'" text-anchor="middle" font-size="10" font-family="Arial,sans-serif" fill="#888">'+lbl+'</text>');
+    svg.push('<text x="'+x+'" y="'+(H-5)+'" text-anchor="middle" font-size="9" font-family="Arial,sans-serif" fill="#888">'+lbl+'</text>');
   });
 
   // ライン
