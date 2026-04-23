@@ -1041,11 +1041,19 @@ function saveGasUrl() {
 // ================================================================
 function resetData() {
   if (!confirm('ローカルの全記録を削除します。\nスプシのデータは消えません。\n\n本当にリセットしますか？')) return;
+  // localStorageの全ダイエット関連キーを完全削除
   localStorage.removeItem('dl3');
+  localStorage.removeItem('dietlogs');
+  localStorage.removeItem('dietlogs_v2');
+  // メモリ上のlogsも空にする
+  logs.length = 0;
+  while (logs.length) logs.pop();
   logs = [];
+  // 保存して確定
+  saveLogs();
   var statusEl = document.getElementById('reset-status');
   statusEl.style.color = '#1D9E75';
-  statusEl.textContent = '✓ リセット完了。「過去データを取得する」を押してインポートしてください。';
+  statusEl.textContent = '✓ リセット完了（' + localStorage.getItem('dl3') + '）。このまま「過去データを取得する」を押してください。';
   toast('リセット完了 ✓');
 }
 
