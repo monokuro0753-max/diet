@@ -740,7 +740,7 @@ function escHtml(s) {
 // グラフ描画
 // ================================================================
 function renderGraphs() {
-  var recent = logs.slice(-60);
+  var recent = logs.slice(-90);
   var labels  = recent.map(function(l) {
     var p = nd(l.date).split('/');
     return p[1] + '/' + p[2];
@@ -996,7 +996,7 @@ function confirmDelete(dateNd) {
 function renderLog() {
   var el = document.getElementById('log-list');
   if (!logs.length) { el.innerHTML='<div class="empty">まだ記録がありません</div>'; return; }
-  var items = logs.slice().reverse().slice(0,60);
+  var items = logs.slice().reverse().slice(0,90);
   el.innerHTML = items.map(function(l) {
     var stats = '';
     if (l.weight) stats += '<div class="log-stat"><em>体重</em>'+l.weight+'kg</div>';
