@@ -124,6 +124,13 @@ textarea{height:54px;resize:none;line-height:1.5;}
 .step-list li{font-size:13px;color:#666;line-height:1.9;list-style:none;padding-left:22px;position:relative;}
 .step-list li::before{content:attr(data-n);position:absolute;left:0;color:#D4537E;font-weight:700;font-size:11px;top:3px;}
 
+/* ===== AI Meal Btn ===== */
+.ai-meal-btn{padding:10px 4px;background:#fff;border:1.5px solid #D4537E;color:#D4537E;
+  border-radius:10px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;
+  transition:all .15s;text-align:center;}
+.ai-meal-btn:active{background:rgba(212,83,126,0.1);}
+.ai-meal-btn.loading{opacity:.5;pointer-events:none;}
+
 /* ===== Toast ===== */
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(12px);
   background:#111;color:#fff;padding:10px 22px;border-radius:22px;
@@ -173,24 +180,48 @@ textarea{height:54px;resize:none;line-height:1.5;}
     <!-- 食事内容 -->
     <div class="card">
       <div class="card-title">食事内容</div>
+
+      <!-- 朝食 -->
       <div class="field">
-        <label>朝食</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+          <label style="margin-bottom:0;">朝食</label>
+          <button onclick="triggerPhoto('b')" style="font-size:11px;padding:4px 10px;background:#F8F0F4;color:#D4537E;border:1px solid #D4537E;border-radius:8px;font-family:inherit;font-weight:600;cursor:pointer;">📷 写真解析</button>
+        </div>
+        <input type="file" id="photo-b" accept="image/*" capture="environment" style="display:none;" onchange="analyzePhoto('b')">
+        <div id="preview-b" style="display:none;margin-bottom:6px;"></div>
+        <div id="ai-status-b" style="font-size:11px;color:#888;margin-bottom:4px;"></div>
         <textarea id="f-breakfast" placeholder="内容を入力"></textarea>
         <div class="meal-kcal-row">
           <input type="number" id="f-cal-b" placeholder="0" oninput="calcTotal()">
           <span>kcal</span>
         </div>
       </div>
+
+      <!-- 昼食 -->
       <div class="field">
-        <label>昼食</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+          <label style="margin-bottom:0;">昼食</label>
+          <button onclick="triggerPhoto('l')" style="font-size:11px;padding:4px 10px;background:#F8F0F4;color:#D4537E;border:1px solid #D4537E;border-radius:8px;font-family:inherit;font-weight:600;cursor:pointer;">📷 写真解析</button>
+        </div>
+        <input type="file" id="photo-l" accept="image/*" capture="environment" style="display:none;" onchange="analyzePhoto('l')">
+        <div id="preview-l" style="display:none;margin-bottom:6px;"></div>
+        <div id="ai-status-l" style="font-size:11px;color:#888;margin-bottom:4px;"></div>
         <textarea id="f-lunch" placeholder="内容を入力"></textarea>
         <div class="meal-kcal-row">
           <input type="number" id="f-cal-l" placeholder="0" oninput="calcTotal()">
           <span>kcal</span>
         </div>
       </div>
+
+      <!-- 夕食 -->
       <div class="field">
-        <label>夕食</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+          <label style="margin-bottom:0;">夕食</label>
+          <button onclick="triggerPhoto('d')" style="font-size:11px;padding:4px 10px;background:#F8F0F4;color:#D4537E;border:1px solid #D4537E;border-radius:8px;font-family:inherit;font-weight:600;cursor:pointer;">📷 写真解析</button>
+        </div>
+        <input type="file" id="photo-d" accept="image/*" capture="environment" style="display:none;" onchange="analyzePhoto('d')">
+        <div id="preview-d" style="display:none;margin-bottom:6px;"></div>
+        <div id="ai-status-d" style="font-size:11px;color:#888;margin-bottom:4px;"></div>
         <textarea id="f-dinner" placeholder="内容を入力"></textarea>
         <div class="meal-kcal-row">
           <input type="number" id="f-cal-d" placeholder="0" oninput="calcTotal()">
@@ -202,6 +233,22 @@ textarea{height:54px;resize:none;line-height:1.5;}
         <span class="num" id="cal-sum">—</span>
       </div>
       <button class="apply-btn" onclick="applyTotal()">この合計を摂取 kcal に反映 →</button>
+    </div>
+
+    <!-- AI写真解析 -->
+    <div class="card" id="ai-meal-card">
+      <div class="card-title">📷 AI カロリー解析</div>
+      <p class="note" style="margin-bottom:10px;">食事の写真を選択するとAIがカロリーを推定して自動入力します。</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+        <button class="ai-meal-btn" onclick="triggerPhoto('breakfast')">朝食を撮影</button>
+        <button class="ai-meal-btn" onclick="triggerPhoto('lunch')">昼食を撮影</button>
+        <button class="ai-meal-btn" onclick="triggerPhoto('dinner')">夕食を撮影</button>
+      </div>
+      <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="analyzePhoto(this)">
+      <div id="ai-preview" style="display:none;margin-bottom:10px;">
+        <img id="ai-img" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover;">
+      </div>
+      <div id="ai-status" style="font-size:12px;line-height:1.8;color:#888;"></div>
     </div>
 
     <!-- トレーニング -->
@@ -351,6 +398,17 @@ function outJson(o){
         <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/.../exec" oninput="saveGasUrl()">
       </div>
       <div id="gas-status" style="font-size:12px;color:#1D9E75;margin-top:6px;"></div>
+    </div>
+
+    <!-- Gemini API設定 -->
+    <div class="card">
+      <div class="card-title">AI カロリー解析（Gemini）</div>
+      <p class="note">Google Gemini APIキーを設定すると、食事の写真からカロリーを自動推定できます。APIキーは端末内にのみ保存されます。</p>
+      <div class="field">
+        <label>Gemini API キー</label>
+        <input type="password" id="gemini-key" placeholder="AIza..." oninput="saveGeminiKey()">
+      </div>
+      <div id="gemini-status" style="font-size:12px;color:#1D9E75;margin-top:6px;"></div>
     </div>
 
     <!-- 過去データ一括インポート -->
@@ -1052,6 +1110,95 @@ function saveGasUrl() {
   gasUrl = document.getElementById('gas-url').value.trim();
   localStorage.setItem('gasUrl', gasUrl);
   document.getElementById('gas-status').textContent = gasUrl ? 'URL 設定済み ✓' : '';
+}
+
+// ================================================================
+// Gemini API
+// ================================================================
+var geminiKey = localStorage.getItem('geminiKey') || '';
+
+function saveGeminiKey() {
+  geminiKey = document.getElementById('gemini-key').value.trim();
+  localStorage.setItem('geminiKey', geminiKey);
+  document.getElementById('gemini-status').textContent = geminiKey ? 'APIキー設定済み ✓' : '';
+}
+
+// 起動時にキーを反映
+(function() {
+  var el = document.getElementById('gemini-key');
+  var st = document.getElementById('gemini-status');
+  if (el && geminiKey) {
+    el.value = geminiKey;
+    st.textContent = 'APIキー設定済み ✓';
+  }
+})();
+
+function triggerPhoto(meal) {
+  if (!geminiKey) {
+    toast('連携タブでGemini APIキーを設定してください', 'err');
+    return;
+  }
+  document.getElementById('photo-' + meal).click();
+}
+
+function analyzePhoto(meal) {
+  var fileInput = document.getElementById('photo-' + meal);
+  var file = fileInput.files[0];
+  if (!file) return;
+
+  var statusEl = document.getElementById('ai-status-' + meal);
+  var previewEl = document.getElementById('preview-' + meal);
+
+  // プレビュー表示
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result;
+    previewEl.innerHTML = '<img src="'+base64+'" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;">';
+    previewEl.style.display = 'block';
+
+    // Gemini APIに送信
+    statusEl.textContent = '🤖 AI解析中…';
+    var imgData = base64.split(',')[1];
+    var mimeType = file.type || 'image/jpeg';
+
+    fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + geminiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: 'この食事の写真を見て、食べ物の名前と推定カロリーを教えてください。以下の形式でJSONのみ返してください（前後に文字不要）: {"items":"食べ物の説明（例:ご飯、焼き魚、味噌汁）","kcal":推定カロリーの数値}' },
+            { inline_data: { mime_type: mimeType, data: imgData } }
+          ]
+        }],
+        generationConfig: { temperature: 0.1 }
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var text = data.candidates[0].content.parts[0].text.trim();
+      // JSON部分を抽出
+      var m = text.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('JSONが見つかりません');
+      var result = JSON.parse(m[0]);
+
+      // フォームに反映
+      var mealMap = { b: ['f-breakfast','f-cal-b'], l: ['f-lunch','f-cal-l'], d: ['f-dinner','f-cal-d'] };
+      var ids = mealMap[meal];
+      document.getElementById(ids[0]).value = result.items || '';
+      document.getElementById(ids[1]).value = result.kcal || '';
+      calcTotal();
+
+      statusEl.style.color = '#1D9E75';
+      statusEl.textContent = '✓ 解析完了（' + (result.kcal||'?') + ' kcal）※手動で修正できます';
+    })
+    .catch(function(err) {
+      statusEl.style.color = '#D4537E';
+      statusEl.textContent = '⚠️ 解析失敗: ' + (err.message || err);
+      console.error('Gemini error:', err);
+    });
+  };
+  reader.readAsDataURL(file);
 }
 
 // ================================================================
