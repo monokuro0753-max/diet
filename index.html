@@ -360,6 +360,14 @@ function outJson(o){
       <button class="save-btn" onclick="importFromGas()">スプシから過去データを取得する</button>
       <div id="import-status" style="font-size:12px;margin-top:10px;line-height:1.7;"></div>
     </div>
+
+    <!-- データリセット -->
+    <div class="card" style="border-color:#FFCCCC;">
+      <div class="card-title" style="color:#C0392B;">データリセット</div>
+      <p class="note" style="color:#C0392B;">⚠️ ローカルの全記録を削除します。スプシのデータは消えません。リセット後は「過去データを取得する」で再インポートしてください。</p>
+      <button onclick="resetData()" style="width:100%;padding:14px;background:#fff;color:#C0392B;border:2px solid #C0392B;border-radius:12px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;">ローカルデータをリセットする</button>
+      <div id="reset-status" style="font-size:12px;margin-top:8px;"></div>
+    </div>
   </div>
 
 </div><!-- /scroll -->
@@ -1026,6 +1034,19 @@ function saveGasUrl() {
   gasUrl = document.getElementById('gas-url').value.trim();
   localStorage.setItem('gasUrl', gasUrl);
   document.getElementById('gas-status').textContent = gasUrl ? 'URL 設定済み ✓' : '';
+}
+
+// ================================================================
+// データリセット
+// ================================================================
+function resetData() {
+  if (!confirm('ローカルの全記録を削除します。\nスプシのデータは消えません。\n\n本当にリセットしますか？')) return;
+  localStorage.removeItem('dl3');
+  logs = [];
+  var statusEl = document.getElementById('reset-status');
+  statusEl.style.color = '#1D9E75';
+  statusEl.textContent = '✓ リセット完了。「過去データを取得する」を押してインポートしてください。';
+  toast('リセット完了 ✓');
 }
 
 // ================================================================
