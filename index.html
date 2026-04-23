@@ -747,8 +747,23 @@ function renderGraphs() {
   });
 
   // --- メトリクスカード ---
-  var last = logs.length ? logs[logs.length-1] : null;
-  var prev = logs.length >= 2 ? logs[logs.length-2] : null;
+  // weightがある最新レコードを探す
+  var lastW = null;
+  for (var wi = logs.length - 1; wi >= 0; wi--) {
+    if (logs[wi].weight) { lastW = logs[wi]; break; }
+  }
+  // balanceがある最新レコードを探す
+  var lastB = null;
+  for (var bi = logs.length - 1; bi >= 0; bi--) {
+    if (logs[bi].burned || logs[bi].intake) { lastB = logs[bi]; break; }
+  }
+  // 前日比用：lastWの1つ前のweightがあるレコード
+  var prevW = null;
+  if (lastW) {
+    for (var pi = logs.indexOf(lastW) - 1; pi >= 0; pi--) {
+      if (logs[pi].weight) { prevW = logs[pi]; break; }
+    }
+  }
   var meEl = document.getElementById('metrics');
 
   function mCard(val, lbl, col) {
@@ -757,15 +772,15 @@ function renderGraphs() {
       '<div class="metric-lbl">'+lbl+'</div></div>';
   }
 
-  if (last) {
+  if (logs.length) {
     var wFirst = logs.find(function(l){ return l.weight; });
-    var total = (last.weight && wFirst && wFirst.weight) ? (last.weight - wFirst.weight).toFixed(1) : null;
-    var day   = (last.weight && prev && prev.weight) ? (last.weight - prev.weight).toFixed(1) : null;
-    var bal   = (last.burned && last.intake) ? last.burned - last.intake : null;
+    var total = (lastW && wFirst && wFirst.weight) ? (lastW.weight - wFirst.weight).toFixed(1) : null;
+    var day   = (lastW && prevW) ? (lastW.weight - prevW.weight).toFixed(1) : null;
+    var bal   = lastB ? ((lastB.burned||0) - (lastB.intake||0)) : null;
     var su = '<span class="stat-label"> ';
 
     meEl.innerHTML =
-      mCard(last.weight ? (Math.round(last.weight*10)/10) + su+'kg</span>' : '—', '最新体重') +
+      mCard(lastW ? (Math.round(lastW.weight*10)/10) + su+'kg</span>' : '—', '最新体重') +
       mCard(total !== null ? (parseFloat(total)<0?'':'+') + total + su+'kg</span>' : '—',
             '開始からの変化', total!==null?(parseFloat(total)<0?'#1D9E75':'#D4537E'):'#111') +
       mCard(day !== null ? (parseFloat(day)<0?'':'+') + day + su+'kg</span>' : '—',
@@ -923,8 +938,8 @@ function drawChart(cid, lid, labels, opts) {
     svg.push('<text x="'+(pad.l-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" font-family="Arial,sans-serif" fill="#888">'+lbl+'</text>');
   });
 
-  // X 軸ラベル
-  var skip = Math.max(1, Math.ceil(n/7));
+  // X 軸ラベル（7日おきに表示）
+  var skip = Math.max(1, Math.ceil(n/14));
   labels.forEach(function(lbl, i) {
     if (i % skip !== 0 && i !== n-1) return;
     var x = opts.type==='bar' ? Math.round(xB(i)) : Math.round(xL(i));
