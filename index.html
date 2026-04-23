@@ -842,7 +842,7 @@ function renderGraphs() {
     ],
     legend: [{ color:'#D4537E', label:'実績体重' }, { color:'#378ADD', label:'目標体重' }],
     yFmt: function(v){ return parseFloat(v).toFixed(1)+'kg'; },
-    minSpan: 0.8
+    minSpan: 2, tickStep: 0.5
   });
 
   drawChart('chart-cal', 'leg-cal', labels, {
@@ -896,24 +896,29 @@ function drawChart(cid, lid, labels, opts) {
   var yRange = yMax - yMin || 1;
 
   // きれいな目盛り
-  function niceTicks(lo, hi) {
-    var range = hi - lo, rough = range / 4;
-    if (rough <= 0) rough = 1;
-    var mag = Math.pow(10, Math.floor(Math.log(rough) / Math.LN10));
-    var steps = [1,2,2.5,5,10];
-    var step = mag;
-    for (var i = 0; i < steps.length; i++) {
-      if (steps[i]*mag >= rough) { step = steps[i]*mag; break; }
+  function niceTicks(lo, hi, fixedStep) {
+    var step;
+    if (fixedStep) {
+      step = fixedStep;
+    } else {
+      var range = hi - lo, rough = range / 4;
+      if (rough <= 0) rough = 1;
+      var mag = Math.pow(10, Math.floor(Math.log(rough) / Math.LN10));
+      var steps = [1,2,2.5,5,10];
+      step = mag;
+      for (var i = 0; i < steps.length; i++) {
+        if (steps[i]*mag >= rough) { step = steps[i]*mag; break; }
+      }
     }
     var start = Math.ceil(lo / step) * step;
     var ticks = [];
     for (var v = start; v <= hi + step*0.01; v = Math.round((v+step)*1e9)/1e9) {
       ticks.push(Math.round(v*1000)/1000);
-      if (ticks.length >= 6) break;
+      if (ticks.length >= 10) break;
     }
     return ticks.filter(function(v,i,a){ return a.indexOf(v)===i; });
   }
-  var ticks = niceTicks(yMin, yMax);
+  var ticks = niceTicks(yMin, yMax, opts.tickStep);
 
   var n   = labels.length;
   var W   = Math.max(n * 28, 320);
